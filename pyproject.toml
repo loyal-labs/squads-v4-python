@@ -1,0 +1,71 @@
+[project]
+name = "squads"
+version = "0.1.0"
+description = "Squads is a tool for creating and managing multisig wallets on the Solana blockchain."
+readme = "README.md"
+authors = [
+    { name = "Chris Cherniakov", email = "taequn@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "anchorpy>=0.21.0",
+    "autoflake>=2.3.1",
+    "black>=25.1.0",
+    "commitizen>=4.6.2",
+    "genpy>=2022.1",
+    "ipython>=9.2.0",
+    "solana>=0.36.6",
+    "solders>=0.26.0",
+    "typer>=0.15.3",
+]
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+tag_format = "$version"
+version_scheme = "pep440"
+version_provider = "uv"
+update_changelog_on_bump = true
+major_version_zero = true
+
+# --- Ruff Configuration ---
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "C",  # mccabe
+    "B",  # bugbear
+    "UP", # pyupgrade
+]
+ignore = []  # Add any rules you want to ignore here
+
+[tool.isort]
+profile = "black"
+
+# --- Pyright Configuration (Used by Pylance) ---
+[tool.pyright]
+include = ["src"]
+exclude = [
+    "**/__pycache__",
+    "**/.*",
+    "**/.ipynb_checkpoints",
+    "**/node_modules",
+    "**/typestubs",
+    ".venv",
+    "build",
+    "dist",
+]
+
+typeCheckingMode = "strict"
+reportMissingImports = true
+reportMissingTypeStubs = false
+
+# --- Pytest Configuration ---
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
