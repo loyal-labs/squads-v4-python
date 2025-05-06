@@ -175,5 +175,5 @@ planning.md
 *.session
 *.session-journal
 
-### Deus Vult Misc ###
-data/*
+### Multisig TS SDK
+multisig/
