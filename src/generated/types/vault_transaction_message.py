@@ -1,14 +1,14 @@
 from __future__ import annotations
-from . import (
-    multisig_compiled_instruction,
-    multisig_message_address_table_lookup,
-)
+
 import typing
 from dataclasses import dataclass
-from construct import Container, Construct
-from solders.pubkey import Pubkey
-from anchorpy.borsh_extension import BorshPubkey
+
 import borsh_construct as borsh
+from anchorpy.borsh_extension import BorshPubkey
+from construct import Construct, Container
+from solders.pubkey import Pubkey
+
+from . import multisig_compiled_instruction, multisig_message_address_table_lookup
 
 
 class VaultTransactionMessageJSON(typing.TypedDict):

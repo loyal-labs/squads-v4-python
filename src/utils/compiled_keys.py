@@ -1,12 +1,13 @@
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 
 from pydantic import BaseModel
 from solders.address_lookup_table_account import AddressLookupTableAccount
-from solders.instruction import Instruction
+from solders.instruction import CompiledInstruction, Instruction
 from solders.message import MessageAddressTableLookup, MessageHeader
 from solders.pubkey import Pubkey
 
-from utils.account_keys_from_lookups import AccountKeysFromLookups
+from src.utils.account_keys_from_lookups import AccountKeysFromLookups
 
 
 class CompiledKeyMeta(BaseModel):
@@ -18,7 +19,8 @@ class CompiledKeyMeta(BaseModel):
 KeyMetaMap = dict[str, CompiledKeyMeta]
 
 
-class CompiledKeys(BaseModel):
+@dataclass
+class CompiledKeys:
     """
     Adapted to work with  slightly adapted to work with "wrapped" transaction messaged
     """
@@ -64,7 +66,7 @@ class CompiledKeys(BaseModel):
 
     @staticmethod
     def compile(
-        instructions: Sequence[Instruction],
+        instructions: Sequence[CompiledInstruction],
         payer: Pubkey,
     ) -> "CompiledKeys":
         """

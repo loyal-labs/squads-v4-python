@@ -11,6 +11,7 @@ dependencies = [
     "anchorpy>=0.21.0",
     "autoflake>=2.3.1",
     "black>=25.1.0",
+    "borsh-construct>=0.1.0",
     "commitizen>=4.6.2",
     "genpy>=2022.1",
     "ipython>=9.2.0",

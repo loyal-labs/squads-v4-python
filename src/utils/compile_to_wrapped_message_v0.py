@@ -6,13 +6,13 @@ from solders.instruction import CompiledInstruction, Instruction
 from solders.message import MessageAddressTableLookup, MessageV0
 from solders.pubkey import Pubkey
 
-from utils.compiled_keys import CompiledKeys
+from src.utils.compiled_keys import CompiledKeys
 
 
 def compile_to_wrapped_message_v0(
     payer_key: Pubkey,
-    recent_blockhash: str,
-    instructions: Sequence[Instruction],
+    recent_blockhash: Hash,
+    instructions: Sequence[CompiledInstruction],
     address_lookup_table_accounts: Sequence[AddressLookupTableAccount] | None = None,
 ) -> MessageV0:
     """
@@ -100,8 +100,6 @@ def compile_to_wrapped_message_v0(
             )
         )
 
-    recent_blockhash_hash_obj = Hash.from_string(recent_blockhash)
-
     # Construct MessageV0 directly using its components.
     # `static_keys_list` are the account keys not part of any lookup table.
     # `compiled_instructions_list` uses indices on `message_accounts_for_indexing`
@@ -109,7 +107,7 @@ def compile_to_wrapped_message_v0(
     return MessageV0(
         header=header,
         account_keys=static_keys_list,  # These are specifically the static keys
-        recent_blockhash=recent_blockhash_hash_obj,
+        recent_blockhash=recent_blockhash,
         instructions=compiled_instructions_list,
         address_table_lookups=address_table_lookups_list,
     )

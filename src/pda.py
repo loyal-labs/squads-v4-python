@@ -1,7 +1,7 @@
 from solders.pubkey import Pubkey
 
 from generated.program_id import PROGRAM_ID
-from utils.helper_func import to_u8_bytes, to_u32_bytes, to_u64_bytes, to_utf_bytes
+from utils.utils import to_u8_bytes, to_u32_bytes, to_u64_bytes, to_utf_bytes
 
 SEED_PREFIX = to_utf_bytes("multisig")
 SEED_PROGRAM_CONFIG = to_utf_bytes("program_config")
@@ -30,8 +30,8 @@ def get_multisig_pda(
 def get_vault_pda(
     multisig_pda: Pubkey, index: int, program_id: Pubkey = PROGRAM_ID
 ) -> tuple[Pubkey, int]:
-    if index < 0 or index >= 256:
-        raise ValueError("Invalid vault index")
+    assert 0 <= index < 256, "Invalid vault index"
+
     multisig_pda_bytes = multisig_pda.__bytes__()
     return Pubkey.find_program_address(
         [SEED_PREFIX, multisig_pda_bytes, SEED_VAULT, to_u8_bytes(index)],
@@ -40,11 +40,12 @@ def get_vault_pda(
 
 
 def get_ephemeral_signer_pda(
-    transaction_pda: Pubkey,
-    ephemeral_signer_index: int,
-    program_id: Pubkey = PROGRAM_ID,
+    transaction_pda: Pubkey, ephemeral_signer_index: int, program_id: Pubkey | None
 ) -> tuple[Pubkey, int]:
     transaction_pda_bytes = transaction_pda.__bytes__()
+
+    if program_id is None:
+        program_id = PROGRAM_ID
 
     return Pubkey.find_program_address(
         [

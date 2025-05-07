@@ -1,9 +1,10 @@
 from collections.abc import Sequence
+from dataclasses import dataclass
 
-from pydantic import BaseModel
 from solders.pubkey import Pubkey
 
 
-class AccountKeysFromLookups(BaseModel):
+@dataclass
+class AccountKeysFromLookups:
     writable: Sequence[Pubkey]
     readonly: Sequence[Pubkey]
