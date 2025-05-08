@@ -1,19 +1,19 @@
 from solders.instruction import Instruction
 from solders.pubkey import Pubkey
 
-from src.generated.instructions.proposal_approve import (
-    ProposalApproveAccounts,
-    ProposalApproveArgs,
+from src.generated.instructions.proposal_reject import (
+    ProposalRejectAccounts,
+    ProposalRejectArgs,
 )
-from src.generated.instructions.proposal_approve import (
-    proposal_approve as proposal_approve_instruction,
+from src.generated.instructions.proposal_reject import (
+    proposal_reject as proposal_reject_instruction,
 )
 from src.generated.program_id import PROGRAM_ID
 from src.generated.types.proposal_vote_args import ProposalVoteArgs
 from src.pda import get_proposal_pda
 
 
-def proposal_approve(
+def proposal_reject(
     multisig_pda: Pubkey,
     transaction_index: int,
     member: Pubkey,
@@ -34,17 +34,17 @@ def proposal_approve(
 
     proposal_pda = get_proposal_pda(multisig_pda, transaction_index, program_id)[0]
 
-    accounts = ProposalApproveAccounts(
+    accounts = ProposalRejectAccounts(
         multisig=multisig_pda,
         member=member,
         proposal=proposal_pda,
     )
-    args = ProposalApproveArgs(
+    args = ProposalRejectArgs(
         args=ProposalVoteArgs(
             memo=memo,
         )
     )
 
-    return proposal_approve_instruction(
+    return proposal_reject_instruction(
         accounts=accounts, args=args, program_id=program_id
     )
