@@ -2,7 +2,7 @@ from collections.abc import Sequence
 
 from solders.address_lookup_table_account import AddressLookupTableAccount
 from solders.hash import Hash
-from solders.instruction import CompiledInstruction
+from solders.instruction import CompiledInstruction, Instruction
 from solders.message import MessageAddressTableLookup, MessageV0
 from solders.pubkey import Pubkey
 
@@ -12,7 +12,7 @@ from src.utils.compiled_keys import CompiledKeys
 def compile_to_wrapped_message_v0(
     payer_key: Pubkey,
     recent_blockhash: Hash,
-    instructions: Sequence[CompiledInstruction],
+    instructions: Sequence[Instruction],
     address_lookup_table_accounts: Sequence[AddressLookupTableAccount] | None = None,
 ) -> MessageV0:
     """
@@ -57,10 +57,24 @@ def compile_to_wrapped_message_v0(
 
     header, static_keys_list = compiled_keys.get_message_components()
 
+    # Convert instructions to CompiledInstruction
+    compiled_instructions: Sequence[CompiledInstruction] = []
+    for ix in instructions:
+        prog_idx = static_keys_list.index(ix.program_id)
+        acc_idx = [static_keys_list.index(acct.pubkey) for acct in ix.accounts]
+        acc_idx_bytes = bytes(acc_idx)
+
+        compiled_instruction = CompiledInstruction(
+            program_id_index=prog_idx,
+            accounts=acc_idx_bytes,
+            data=ix.data,
+        )
+        compiled_instructions.extend([compiled_instruction])
+
     return MessageV0(
         header=header,
         account_keys=static_keys_list,
         recent_blockhash=recent_blockhash,
-        instructions=instructions,
+        instructions=compiled_instructions,
         address_table_lookups=address_table_lookups_list,
     )

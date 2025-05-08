@@ -1,13 +1,11 @@
-import struct
 from collections.abc import Sequence
-from typing import Any
 
 from borsh_construct import U8
 from construct import Array, Construct
 from solana.rpc.async_api import AsyncClient
 from solders.address_lookup_table_account import AddressLookupTableAccount
 from solders.instruction import AccountMeta
-from solders.message import MessageV0
+from solders.message import Message, MessageV0
 from solders.pubkey import Pubkey
 
 from src.generated.types.vault_transaction_message import VaultTransactionMessageJSON
@@ -33,26 +31,6 @@ def create_small_array(  # type: ignore
         raise ValueError("Length must be between 1 and 32") from None
 
     return construct[length]  # type: ignore
-
-
-def to_utf_bytes(s: str) -> bytes:
-    return s.encode("utf-8")
-
-
-def to_u8_bytes(num: int) -> bytes:
-    return struct.pack("<B", num)
-
-
-def to_u32_bytes(num: int) -> bytes:
-    return struct.pack("<I", num)
-
-
-def to_u64_bytes(num: int) -> bytes:
-    return struct.pack("<Q", num)
-
-
-def to_big_int(number: Any) -> int:
-    return int(str(number))
 
 
 def get_available_memo_size(tx_without_memo: bytes) -> int:
@@ -94,7 +72,7 @@ def is_signer_index(message: VaultTransactionMessageJSON, index: int) -> bool:
 
 
 def transaction_message_to_multisig_transaction_message_bytes(
-    message: MessageV0,
+    message: Message,
     address_lookup_table_accounts: list[AddressLookupTableAccount] | None,
     vault_pda: Pubkey,
 ) -> bytes:
@@ -204,7 +182,6 @@ async def accounts_for_transaction_execute(
         account_metas.extend([meta])
 
     # Then add accounts that will be loaded with address lookup tables.
-    # NOTE:
     for lookup in message["address_table_lookups"]:
         pubkey = Pubkey.from_string(lookup["account_key"])
         lookup_account = address_lookup_dict[pubkey]

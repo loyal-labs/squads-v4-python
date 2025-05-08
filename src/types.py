@@ -2,11 +2,11 @@ from abc import ABC
 from dataclasses import dataclass
 from enum import IntFlag
 
+from anchorpy.borsh_extension import BorshPubkey  # type: ignore
 from borsh_construct import U8, U16, CStruct
 from construct import Struct
 from solders.pubkey import Pubkey
 
-from src.utils.beet_solana import PublicKey
 from utils.utils import create_small_array  # type: ignore
 
 
@@ -56,7 +56,7 @@ class Permissions(AbstractPermissions):
 
 
 @dataclass
-class CompiledMsInstruction:
+class CompiledInstructionMultisig:
     program_id_index: int
     account_indexes: list[int]
     data: list[int]
@@ -81,7 +81,7 @@ class MessageAddressTableLookup:
         cls,
     ) -> Struct:  # type: ignore
         return CStruct(
-            "account_key" / PublicKey,  # type: ignore
+            "account_key" / BorshPubkey,  # type: ignore
             "writable_indexes" / create_small_array(U8, U8),  # type: ignore
             "readonly_indexes" / create_small_array(U8, U8),  # type: ignore
         )
@@ -93,7 +93,7 @@ class TransactionMessage:
     num_writable_signers: int
     num_writable_non_signers: int
     account_keys: list[Pubkey]
-    instructions: list[CompiledMsInstruction]
+    instructions: list[CompiledInstructionMultisig]
     address_table_lookups: list[MessageAddressTableLookup]
 
     @classmethod
@@ -104,7 +104,7 @@ class TransactionMessage:
             "num_signers" / U8,
             "num_writable_signers" / U8,
             "num_writable_non_signers" / U8,
-            "account_keys" / create_small_array(U8, PublicKey),  # type: ignore
-            "instructions" / create_small_array(U8, CompiledMsInstruction),  # type: ignore
+            "account_keys" / create_small_array(U8, BorshPubkey),  # type: ignore
+            "instructions" / create_small_array(U8, CompiledInstructionMultisig),  # type: ignore
             "address_table_lookups" / create_small_array(U8, MessageAddressTableLookup),  # type: ignore
         )

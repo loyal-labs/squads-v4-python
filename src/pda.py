@@ -1,7 +1,7 @@
 from solders.pubkey import Pubkey
 
-from generated.program_id import PROGRAM_ID
-from utils.utils import to_u8_bytes, to_u32_bytes, to_u64_bytes, to_utf_bytes
+from src.generated.program_id import PROGRAM_ID
+from src.utils.nums import to_u8_bytes, to_u32_bytes, to_u64_bytes, to_utf_bytes
 
 SEED_PREFIX = to_utf_bytes("multisig")
 SEED_PROGRAM_CONFIG = to_utf_bytes("program_config")

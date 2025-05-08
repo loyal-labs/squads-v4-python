@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel
 from solders.address_lookup_table_account import AddressLookupTableAccount
-from solders.instruction import CompiledInstruction, Instruction
+from solders.instruction import Instruction
 from solders.message import MessageAddressTableLookup, MessageHeader
 from solders.pubkey import Pubkey
 
@@ -66,7 +66,7 @@ class CompiledKeys:
 
     @staticmethod
     def compile(
-        instructions: Sequence[CompiledInstruction],
+        instructions: Sequence[Instruction],
         payer: Pubkey,
     ) -> "CompiledKeys":
         """
