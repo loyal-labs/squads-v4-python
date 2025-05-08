@@ -25,6 +25,22 @@ def multisig_create_v2(
     Returns unsigned `Transaction` that needs to be
     signed by `creator` and `createKey` before sending it.
     """
+    try:
+        assert isinstance(blockhash, Hash)
+        assert isinstance(treasury, Pubkey)
+        assert isinstance(create_key, Pubkey)
+        assert isinstance(creator, Pubkey)
+        assert isinstance(multisig, Pubkey)
+        assert isinstance(config_authority, Pubkey | None)
+        assert isinstance(threshold, int)
+        assert isinstance(members, list)
+        assert isinstance(time_lock, int)
+        assert isinstance(rent_collector, Pubkey | None)
+        assert isinstance(memo, str | None)
+        assert isinstance(program_id, Pubkey)
+    except AssertionError:
+        raise ValueError("Invalid argument") from None
+
     instruction = create_instruction(
         treasury,
         creator,
