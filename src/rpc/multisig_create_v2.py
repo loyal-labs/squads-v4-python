@@ -1,5 +1,6 @@
 from solana.rpc.async_api import AsyncClient
 from solders.pubkey import Pubkey
+from solders.rpc.responses import SendTransactionResp
 from solders.transaction import Signer
 
 from src.generated.program_id import PROGRAM_ID
@@ -20,7 +21,7 @@ async def multisig_create_v2(
     rent_collector: Pubkey | None,
     memo: str | None,
     program_id: Pubkey = PROGRAM_ID,
-):
+) -> SendTransactionResp:
     try:
         assert isinstance(connection, AsyncClient)
         assert isinstance(treasury, Pubkey)

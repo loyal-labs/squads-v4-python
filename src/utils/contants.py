@@ -1,0 +1,1 @@
+MAX_SAFE_INTEGER = 2**63 - 1

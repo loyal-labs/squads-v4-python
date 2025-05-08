@@ -1,4 +1,3 @@
-from solders.hash import Hash
 from solders.message import Message
 from solders.pubkey import Pubkey
 from solders.transaction import Transaction
@@ -8,7 +7,6 @@ from src.instructions.multisig_create_v2 import multisig_create_v2 as create_ins
 
 
 def multisig_create_v2(
-    blockhash: Hash,
     treasury: Pubkey,
     create_key: Pubkey,
     creator: Pubkey,
@@ -26,7 +24,6 @@ def multisig_create_v2(
     signed by `creator` and `createKey` before sending it.
     """
     try:
-        assert isinstance(blockhash, Hash)
         assert isinstance(treasury, Pubkey)
         assert isinstance(create_key, Pubkey)
         assert isinstance(creator, Pubkey)
