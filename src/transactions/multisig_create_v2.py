@@ -1,12 +1,15 @@
-from solders.message import Message
+from solders.hash import Hash
+from solders.message import MessageV0
 from solders.pubkey import Pubkey
-from solders.transaction import Transaction
+from solders.signature import Signature
+from solders.transaction import VersionedTransaction
 
 from src.generated.types.member import Member
 from src.instructions.multisig_create_v2 import multisig_create_v2 as create_instruction
 
 
 def multisig_create_v2(
+    blockhash: Hash,
     treasury: Pubkey,
     create_key: Pubkey,
     creator: Pubkey,
@@ -18,12 +21,13 @@ def multisig_create_v2(
     rent_collector: Pubkey | None,
     memo: str | None,
     program_id: Pubkey,
-) -> Transaction:
+) -> VersionedTransaction:
     """
-    Returns unsigned `Transaction` that needs to be
-    signed by `creator` and `createKey` before sending it.
+    Returns unsigned `VersionedTransaction` that needs to be
+    signed by `creator` and `create_key` before sending it.
     """
     try:
+        assert isinstance(blockhash, Hash)
         assert isinstance(treasury, Pubkey)
         assert isinstance(create_key, Pubkey)
         assert isinstance(creator, Pubkey)
@@ -52,6 +56,16 @@ def multisig_create_v2(
         program_id,
     )
 
-    message = Message(instructions=[instruction], payer=creator)
+    message_v0 = MessageV0.try_compile(
+        creator,
+        [instruction],
+        [],
+        blockhash,
+    )
 
-    return Transaction.new_unsigned(message)
+    num_signers = message_v0.header.num_required_signatures
+    signers = [Signature.default() for _ in range(num_signers)]
+
+    versioned_tx = VersionedTransaction.populate(message_v0, signers)
+
+    return versioned_tx

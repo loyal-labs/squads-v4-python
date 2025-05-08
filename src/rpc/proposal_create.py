@@ -1,4 +1,3 @@
-from collections.abc import Sequence
 from typing import Annotated
 
 from solana.rpc.async_api import AsyncClient
@@ -35,6 +34,7 @@ async def proposal_create(
     blockhash = (await connection.get_latest_blockhash()).value.blockhash
 
     tx = create_transaction(
+        blockhash,
         fee_payer.pubkey(),
         multisig_pda,
         transaction_index,
@@ -43,10 +43,6 @@ async def proposal_create(
         is_draft,
         program_id,
     )
-    signers: Sequence[Signer] = [fee_payer, creator]
-    if rent_payer:
-        signers.extend([rent_payer])
-    tx.sign(signers, blockhash)
 
     try:
         return await connection.send_transaction(tx)

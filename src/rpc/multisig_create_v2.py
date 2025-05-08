@@ -55,6 +55,7 @@ async def multisig_create_v2(
         program_id,
     )
 
-    tx.sign([creator, create_key], blockhash)
-
-    return await connection.send_transaction(tx)
+    try:
+        return await connection.send_transaction(tx)
+    except Exception as e:
+        raise e from None

@@ -1,11 +1,14 @@
-from solders.message import Message
+from solders.hash import Hash
+from solders.message import MessageV0
 from solders.pubkey import Pubkey
-from solders.transaction import Transaction
+from solders.signature import Signature
+from solders.transaction import VersionedTransaction
 
 from src.instructions.proposal_create import proposal_create as create_instruction
 
 
 def proposal_create(
+    blockhash: Hash,
     fee_payer: Pubkey,
     multisig_pda: Pubkey,
     transaction_index: int,
@@ -13,9 +16,9 @@ def proposal_create(
     rent_payer: Pubkey | None,
     is_draft: bool | None,
     program_id: Pubkey | None,
-) -> Transaction:
+) -> VersionedTransaction:
     """
-    Returns unsigned `Transaction` that needs to be
+    Returns unsigned `VersionedTransaction` that needs to be
     signed by `creator` and `createKey` before sending it.
     """
     try:
@@ -38,6 +41,15 @@ def proposal_create(
         program_id,
     )
 
-    message = Message(instructions=[ix], payer=creator)
+    message_v0 = MessageV0.try_compile(
+        creator,
+        [ix],
+        [],
+        blockhash,
+    )
+    num_signers = message_v0.header.num_required_signatures
+    signers = [Signature.default() for _ in range(num_signers)]
 
-    return Transaction.new_unsigned(message)
+    versioned_tx = VersionedTransaction.populate(message_v0, signers)
+
+    return versioned_tx

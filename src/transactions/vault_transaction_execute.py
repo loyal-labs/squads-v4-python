@@ -48,11 +48,8 @@ async def vault_transaction_execute(
         lookup_table_accounts,
         blockhash,
     )
-    member_sig = Signature.default()
-    fee_payer_sig = Signature.default()
-
-    unique = {member_sig, fee_payer_sig}
-
-    versioned_tx = VersionedTransaction.populate(message_v0, list(unique))
+    num_signers = message_v0.header.num_required_signatures
+    signers = [Signature.default() for _ in range(num_signers)]
+    versioned_tx = VersionedTransaction.populate(message_v0, signers)
 
     return versioned_tx

@@ -33,6 +33,7 @@ async def proposal_approve(
     blockhash = (await connection.get_latest_blockhash()).value.blockhash
 
     tx = create_transaction(
+        blockhash,
         fee_payer.pubkey(),
         multisig_pda,
         transaction_index,
@@ -40,7 +41,6 @@ async def proposal_approve(
         memo,
         program_id,
     )
-    tx.sign([fee_payer, member], blockhash)
 
     try:
         return await connection.send_transaction(tx, send_options)
