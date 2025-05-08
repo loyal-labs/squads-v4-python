@@ -8,6 +8,7 @@ from src.generated.instructions.multisig_create_v2 import (
 from src.generated.instructions.multisig_create_v2 import (
     multisig_create_v2 as multisig_create_v2_instruction,
 )
+from src.generated.program_id import PROGRAM_ID
 from src.generated.types.member import Member
 from src.generated.types.multisig_create_args_v2 import MultisigCreateArgsV2
 from src.pda import get_program_config_pda
@@ -24,8 +25,11 @@ def multisig_create_v2(
     create_key: Pubkey,
     rent_collector: Pubkey | None,
     memo: str | None,
-    program_id: Pubkey,
+    program_id: Pubkey | None,
 ) -> Instruction:
+    if program_id is None:
+        program_id = PROGRAM_ID
+
     try:
         assert isinstance(treasury, Pubkey)
         assert isinstance(creator, Pubkey)

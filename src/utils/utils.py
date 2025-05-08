@@ -1,14 +1,15 @@
 from collections.abc import Sequence
+from typing import Any
 
 from borsh_construct import U8
 from construct import Array, Construct
 from solana.rpc.async_api import AsyncClient
 from solders.address_lookup_table_account import AddressLookupTableAccount
 from solders.instruction import AccountMeta
-from solders.message import Message, MessageV0
+from solders.message import Message
 from solders.pubkey import Pubkey
 
-from src.generated.types.vault_transaction_message import VaultTransactionMessageJSON
+from src.generated.types.vault_transaction_message import VaultTransactionMessage
 from src.pda import get_ephemeral_signer_pda
 from src.types import TransactionMessage
 from src.utils.compile_to_wrapped_message_v0 import compile_to_wrapped_message_v0
@@ -42,13 +43,13 @@ def get_available_memo_size(tx_without_memo: bytes) -> int:
 
 
 def is_static_writable_index(
-    message: VaultTransactionMessageJSON,
+    message: VaultTransactionMessage,
     index: int,
 ) -> bool:
-    num_acc_keys = len(message["account_keys"])
-    num_signers = message["num_signers"]
-    num_writable_signers = message["num_writable_signers"]
-    num_writable_non_signers = message["num_writable_non_signers"]
+    num_acc_keys = len(message.account_keys)
+    num_signers = message.num_signers
+    num_writable_signers = message.num_writable_signers
+    num_writable_non_signers = message.num_writable_non_signers
 
     if index >= num_acc_keys:
         # `index` is not a part of static `account_keys`.
@@ -67,8 +68,8 @@ def is_static_writable_index(
     return False
 
 
-def is_signer_index(message: VaultTransactionMessageJSON, index: int) -> bool:
-    return index < message["num_signers"]
+def is_signer_index(message: VaultTransactionMessage, index: int) -> bool:
+    return index < message.num_signers
 
 
 def transaction_message_to_multisig_transaction_message_bytes(
@@ -121,18 +122,17 @@ async def accounts_for_transaction_execute(
     connection: AsyncClient,
     transaction_pda: Pubkey,
     vault_pda: Pubkey,
-    message: VaultTransactionMessageJSON,
+    message: VaultTransactionMessage,
     ephemeral_signer_bump: Sequence[int],
     program_id: Pubkey | None,
-):
+) -> dict[str, Any]:
     ephemeral_signer_pdas: Sequence[Pubkey] = [
         get_ephemeral_signer_pda(transaction_pda, ix, program_id)[0]
         for ix in ephemeral_signer_bump
     ]
 
     address_lookup_table_keys = [
-        Pubkey.from_string(lookup["account_key"])
-        for lookup in message["address_table_lookups"]
+        lookup.account_key for lookup in message.address_table_lookups
     ]
     address_lookup_dict: dict[Pubkey, AddressLookupTableAccount] = {}
 
@@ -166,8 +166,8 @@ async def accounts_for_transaction_execute(
     )
 
     # Then add static account keys included into the message.
-    for index, key in enumerate(message["account_keys"]):
-        pubkey = Pubkey.from_string(key)
+    for index, key in enumerate(message.account_keys):
+        pubkey = key
         is_writable = is_static_writable_index(message, index)
         # NOTE: vaultPda and ephemeralSignerPdas cannot be marked as signers,
         # because they are PDAs and won't have
@@ -182,8 +182,8 @@ async def accounts_for_transaction_execute(
         account_metas.extend([meta])
 
     # Then add accounts that will be loaded with address lookup tables.
-    for lookup in message["address_table_lookups"]:
-        pubkey = Pubkey.from_string(lookup["account_key"])
+    for lookup in message.address_table_lookups:
+        pubkey = lookup.account_key
         lookup_account = address_lookup_dict[pubkey]
 
         assert lookup_account, (
@@ -191,7 +191,7 @@ async def accounts_for_transaction_execute(
             pubkey,
         )
 
-        for idx in lookup["writable_indexes"]:
+        for idx in lookup.writable_indexes:
             pubkey = lookup_account.addresses[idx]
 
             assert pubkey, (
@@ -202,7 +202,7 @@ async def accounts_for_transaction_execute(
             meta = AccountMeta(pubkey, True, False)
             account_metas.extend([meta])
 
-        for idx in lookup["readonly_indexes"]:
+        for idx in lookup.readonly_indexes:
             pubkey = lookup_account.addresses[idx]
             assert pubkey, (
                 "Address lookup table account %s has no owner",
