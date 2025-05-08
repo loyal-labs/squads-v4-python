@@ -159,7 +159,8 @@ async def accounts_for_transaction_execute(
     address_lookup_dict: dict[Pubkey, AddressLookupTableAccount] = {}
 
     # Initialize RPC client
-    async with AsyncClient("http://localhost:8899") as client:
+    # TODO: double check if this is correct
+    async with connection as client:
         # Create tasks for fetching all tables
         lookup_tasks: list[tuple[Pubkey, AddressLookupTableAccount]] = []
 
