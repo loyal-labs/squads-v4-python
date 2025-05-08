@@ -16,7 +16,7 @@ from src.pda import get_proposal_pda
 from src.utils.contants import MAX_SAFE_INTEGER
 
 
-async def proposal_create(
+def proposal_create(
     multisig_pda: Pubkey,
     creator: Pubkey,
     rent_payer: Pubkey | None,
