@@ -1,6 +1,7 @@
 from solders.address_lookup_table_account import AddressLookupTableAccount
 from solders.hash import Hash
-from solders.message import Message, MessageV0
+from solders.instruction import Instruction
+from solders.message import MessageV0
 from solders.pubkey import Pubkey
 from solders.signature import Signature
 from solders.transaction import VersionedTransaction
@@ -19,7 +20,9 @@ def vault_transaction_create(
     rent_payer: Pubkey,
     vault_index: int,
     ephemeral_signers: int,
-    transaction_message: Message,
+    transaction_payer: Pubkey,
+    transaction_recent_blockhash: Hash,
+    transaction_instructions: list[Instruction],
     address_lookup_table_accounts: list[AddressLookupTableAccount],
     memo: str | None,
     program_id: Pubkey | None,
@@ -36,7 +39,9 @@ def vault_transaction_create(
         assert isinstance(rent_payer, Pubkey)
         assert isinstance(vault_index, int)
         assert isinstance(ephemeral_signers, int)
-        assert isinstance(transaction_message, Message)
+        assert isinstance(transaction_payer, Pubkey)
+        assert isinstance(transaction_recent_blockhash, Hash)
+        assert isinstance(transaction_instructions, list)
         assert isinstance(address_lookup_table_accounts, list)
         assert isinstance(memo, str) or memo is None
         assert isinstance(program_id, Pubkey) or program_id is None
@@ -50,7 +55,9 @@ def vault_transaction_create(
         rent_payer,
         vault_index,
         ephemeral_signers,
-        transaction_message,
+        transaction_payer,
+        transaction_recent_blockhash,
+        transaction_instructions,
         address_lookup_table_accounts,
         memo,
         program_id,
@@ -62,6 +69,7 @@ def vault_transaction_create(
         [],
         blockhash,
     )
+
     num_signers = message_v0.header.num_required_signatures
     signers = [Signature.default() for _ in range(num_signers)]
 

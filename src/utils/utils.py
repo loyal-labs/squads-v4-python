@@ -5,32 +5,35 @@ from borsh_construct import U8
 from construct import Array, Construct
 from solana.rpc.async_api import AsyncClient
 from solders.address_lookup_table_account import AddressLookupTableAccount
-from solders.instruction import AccountMeta
-from solders.message import Message
+from solders.hash import Hash
+from solders.instruction import AccountMeta, Instruction
 from solders.pubkey import Pubkey
 
-from src.generated.types.vault_transaction_message import VaultTransactionMessage
+from src.generated.types.multisig_compiled_instruction import (
+    MultisigCompiledInstructionJSON,
+)
+from src.generated.types.multisig_message_address_table_lookup import (
+    MultisigMessageAddressTableLookupJSON,
+)
+from src.generated.types.vault_transaction_message import (
+    VaultTransactionMessage,
+    VaultTransactionMessageJSON,
+)
 from src.pda import get_ephemeral_signer_pda
-from src.types import TransactionMessage
 from src.utils.compile_to_wrapped_message_v0 import compile_to_wrapped_message_v0
+from src.utils.compiled_keys import CompiledKeys
 
 MAX_TX_SIZE_BYTES = 1232
 STRING_LEN_SIZE = 4
 
 
 def create_small_array(  # type: ignore
-    length: int,
+    length: Construct,  # type: ignore
     construct: Construct = U8,  # type: ignore
 ) -> Array:  # type: ignore
     """
     Creates a small array of the given length.
     """
-    try:
-        assert length > 0
-        assert length <= 32
-    except AssertionError:
-        raise ValueError("Length must be between 1 and 32") from None
-
     return construct[length]  # type: ignore
 
 
@@ -73,46 +76,57 @@ def is_signer_index(message: VaultTransactionMessage, index: int) -> bool:
 
 
 def transaction_message_to_multisig_transaction_message_bytes(
-    message: Message,
-    address_lookup_table_accounts: list[AddressLookupTableAccount] | None,
+    transaction_payer: Pubkey,
+    transaction_recent_blockhash: Hash,
+    transaction_instructions: list[Instruction],
+    address_lookup_table_accounts: list[AddressLookupTableAccount],
     vault_pda: Pubkey,
 ) -> bytes:
-    # Use custom implementation of `message.compileToV0Message`
-    # that allows instruction programIds
-    # to also be loaded from `addressLookupTableAccounts`.
-    payer_key = message.account_keys[0]
-    recent_blockhash = message.recent_blockhash
-    instructions = message.instructions
+    compiled_keys = CompiledKeys.compile(transaction_instructions, transaction_payer)
 
     compiled_message = compile_to_wrapped_message_v0(
-        payer_key=payer_key,
-        recent_blockhash=recent_blockhash,
-        instructions=instructions,
+        compiled_keys=compiled_keys,
+        recent_blockhash=transaction_recent_blockhash,
+        instructions=transaction_instructions,
         address_lookup_table_accounts=address_lookup_table_accounts,
     )
 
     compiled_instructions = [
-        {
-            "program_id_index": ix.program_id_index,
-            "account_indexes": ix.accounts,
-            "data": ix.data,
-        }
+        MultisigCompiledInstructionJSON(
+            program_id_index=ix.program_id_index,
+            account_indexes=list(ix.accounts),
+            data=list(ix.data),
+        )
         for ix in compiled_message.instructions
     ]
 
-    transaction_message_construct = TransactionMessage.construct()  # type: ignore
+    lut_table_lookups: list[MultisigMessageAddressTableLookupJSON] = []
+    for lut_account in address_lookup_table_accounts:
+        table = compiled_keys.extract_table_lookup(lut_account)
+        if table is None:
+            continue
+        msg_lut_table, _ = table
+        lut_obj = MultisigMessageAddressTableLookupJSON(
+            account_key=str(msg_lut_table.account_key),
+            writable_indexes=list(msg_lut_table.writable_indexes),
+            readonly_indexes=list(msg_lut_table.readonly_indexes),
+        )
+        lut_table_lookups.extend([lut_obj])
 
-    construct_dict = {
-        "num_signers": compiled_message.header.num_required_signatures,
-        "num_writable_signers": compiled_message.header.num_required_signatures
+    acc_keys = [str(key) for key in compiled_message.account_keys]
+    construct_dict = VaultTransactionMessageJSON(
+        num_signers=compiled_message.header.num_required_signatures,
+        num_writable_signers=compiled_message.header.num_required_signatures
         - compiled_message.header.num_readonly_signed_accounts,
-        "num_writable_non_signers": len(compiled_message.account_keys)
+        num_writable_non_signers=len(compiled_message.account_keys)
         - compiled_message.header.num_required_signatures
         - compiled_message.header.num_readonly_unsigned_accounts,
-        "account_keys": compiled_message.account_keys,
-        "instructions": compiled_instructions,
-        "address_table_lookups": compiled_message.address_table_lookups,
-    }
+        account_keys=acc_keys,
+        instructions=compiled_instructions,
+        address_table_lookups=lut_table_lookups,
+    )
+
+    tx_msg_obj = VaultTransactionMessage.from_json(construct_dict)
 
     transaction_message_bytes = transaction_message_construct.build(construct_dict)  # type: ignore
     return transaction_message_bytes

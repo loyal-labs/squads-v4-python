@@ -175,5 +175,6 @@ planning.md
 *.session
 *.session-journal
 
-### Multisig TS SDK
+### Multisig SDK
 multisig/
+test-ledger/

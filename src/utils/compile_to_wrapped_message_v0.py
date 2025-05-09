@@ -10,7 +10,7 @@ from src.utils.compiled_keys import CompiledKeys
 
 
 def compile_to_wrapped_message_v0(
-    payer_key: Pubkey,
+    compiled_keys: CompiledKeys,
     recent_blockhash: Hash,
     instructions: Sequence[Instruction],
     address_lookup_table_accounts: Sequence[AddressLookupTableAccount] | None = None,
@@ -36,7 +36,6 @@ def compile_to_wrapped_message_v0(
     Returns:
         A MessageV0 object ready for transaction signing and sending.
     """
-    compiled_keys = CompiledKeys.compile(instructions, payer_key)
 
     address_table_lookups_list: Sequence[MessageAddressTableLookup] = []
     # These will store Pubkeys extracted into LUTs

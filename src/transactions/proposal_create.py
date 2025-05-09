@@ -17,10 +17,6 @@ def proposal_create(
     is_draft: bool | None,
     program_id: Pubkey | None,
 ) -> VersionedTransaction:
-    """
-    Returns unsigned `VersionedTransaction` that needs to be
-    signed by `creator` and `createKey` before sending it.
-    """
     try:
         assert isinstance(fee_payer, Pubkey)
         assert isinstance(multisig_pda, Pubkey)

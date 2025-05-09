@@ -7,7 +7,7 @@ from borsh_construct import U8, U16, CStruct
 from construct import Struct
 from solders.pubkey import Pubkey
 
-from utils.utils import create_small_array  # type: ignore
+from src.utils.utils import create_small_array  # type: ignore
 
 
 class Permission(IntFlag):

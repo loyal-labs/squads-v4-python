@@ -1,6 +1,8 @@
+from typing import Annotated
+
 from solders.address_lookup_table_account import AddressLookupTableAccount
+from solders.hash import Hash
 from solders.instruction import Instruction
-from solders.message import Message
 from solders.pubkey import Pubkey
 
 from src.generated.instructions.vault_transaction_create import (
@@ -25,7 +27,13 @@ def vault_transaction_create(
     rent_payer: Pubkey,
     vault_index: int,
     ephemeral_signers: int,
-    transaction_message: Message,
+    transaction_payer: Annotated[Pubkey, "Payer of the transaction for the multisig"],
+    transaction_recent_blockhash: Annotated[
+        Hash, "Recent blockhash of the transaction for the multisig"
+    ],
+    transaction_instructions: Annotated[
+        list[Instruction], "Instructions of the transaction for the multisig"
+    ],
     address_lookup_table_accounts: list[AddressLookupTableAccount],
     memo: str | None,
     program_id: Pubkey | None,
@@ -40,7 +48,9 @@ def vault_transaction_create(
         assert isinstance(rent_payer, Pubkey)
         assert isinstance(vault_index, int)
         assert isinstance(ephemeral_signers, int)
-        assert isinstance(transaction_message, Message)
+        assert isinstance(transaction_payer, Pubkey)
+        assert isinstance(transaction_recent_blockhash, Hash)
+        assert isinstance(transaction_instructions, list)
         assert isinstance(address_lookup_table_accounts, list)
         assert isinstance(memo, str) or memo is None
         assert isinstance(program_id, Pubkey)
@@ -52,7 +62,9 @@ def vault_transaction_create(
 
     transaction_message_bytes = (
         transaction_message_to_multisig_transaction_message_bytes(
-            transaction_message,
+            transaction_payer,
+            transaction_recent_blockhash,
+            transaction_instructions,
             address_lookup_table_accounts,
             vault_pda,
         )
