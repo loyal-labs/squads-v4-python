@@ -17,8 +17,8 @@ async def vault_transaction_execute(
     multisig_pda: Pubkey,
     transaction_index: int,
     member: Pubkey,
-    signers: Sequence[Signer],
-    send_options: TxOpts,
+    signers: Sequence[Signer] | None,
+    send_options: TxOpts | None,
     program_id: Pubkey | None,
 ) -> SendTransactionResp:
     """ """

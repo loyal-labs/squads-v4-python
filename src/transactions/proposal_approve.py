@@ -16,10 +16,6 @@ def proposal_approve(
     memo: str | None,
     program_id: Pubkey | None,
 ) -> VersionedTransaction:
-    """
-    Returns unsigned `VersionedTransaction` that needs to be
-    signed by `member` and `feePayer` before sending it.
-    """
     try:
         assert isinstance(fee_payer, Pubkey)
         assert isinstance(multisig_pda, Pubkey)

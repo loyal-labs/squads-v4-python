@@ -43,7 +43,7 @@ async def vault_transaction_execute(
     vault_pda = get_vault_pda(multisig_pda, tx_acc.vault_index, program_id)[0]
     ephemeral_signer_bump_seq = list(tx_acc.ephemeral_signer_bumps)
 
-    acc_response = await accounts_for_transaction_execute(
+    account_metas, lookup_table_accs = await accounts_for_transaction_execute(
         connection,
         tx_pda,
         vault_pda,
@@ -51,16 +51,19 @@ async def vault_transaction_execute(
         ephemeral_signer_bump_seq,
         program_id,
     )
-    lookup_table_accs = acc_response["lookup_table_accounts"]
+
     accs = VaultTransactionExecuteAccounts(
         multisig=multisig_pda,
         proposal=proposal_pda,
         transaction=tx_pda,
         member=member,
     )
+
+    print(f"Accounts vault: {accs}")
     ix = vault_transaction_execute_instruction(
         accs,
         program_id,
+        account_metas,
     )
 
     return ix, lookup_table_accs

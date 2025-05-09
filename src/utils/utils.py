@@ -1,5 +1,4 @@
 from collections.abc import Sequence
-from typing import Any
 
 from borsh_construct import U8
 from construct import Array, Construct
@@ -127,9 +126,34 @@ def transaction_message_to_multisig_transaction_message_bytes(
     )
 
     tx_msg_obj = VaultTransactionMessage.from_json(construct_dict)
+    tx_msg_bytes = tx_msg_obj.layout.build(tx_msg_obj.to_encodable())
 
-    transaction_message_bytes = transaction_message_construct.build(construct_dict)  # type: ignore
-    return transaction_message_bytes
+    return tx_msg_bytes
+
+
+async def _create_address_lookup_table_accounts(
+    connection: AsyncClient, address_lookup_table_keys: list[Pubkey]
+) -> dict[Pubkey, AddressLookupTableAccount]:
+    # Initialize an empty dictionary
+    lookup_tasks: list[tuple[Pubkey, AddressLookupTableAccount]] = []
+
+    # Process each key sequentially
+    for key in address_lookup_table_keys:
+        # Fetch the lookup table
+        response = await connection.get_account_info(key, encoding="jsonParsed")
+        value = response.value
+
+        # Check if the value exists
+        if not value:
+            raise ValueError(f"Address lookup table account {key} not found")
+
+        # Add to the dictionary
+        value_obj = AddressLookupTableAccount.from_bytes(value.data)
+        lookup_tasks.extend([(key, value_obj)])
+
+    print(f"Lookup tasks: {len(lookup_tasks)}")
+
+    return dict(lookup_tasks)
 
 
 async def accounts_for_transaction_execute(
@@ -137,41 +161,29 @@ async def accounts_for_transaction_execute(
     transaction_pda: Pubkey,
     vault_pda: Pubkey,
     message: VaultTransactionMessage,
-    ephemeral_signer_bump: Sequence[int],
+    ephemeral_signer_bumps: Sequence[int],
     program_id: Pubkey | None,
-) -> dict[str, Any]:
-    ephemeral_signer_pdas: Sequence[Pubkey] = [
-        get_ephemeral_signer_pda(transaction_pda, ix, program_id)[0]
-        for ix in ephemeral_signer_bump
+) -> tuple[list[AccountMeta], list[AddressLookupTableAccount]]:
+    print(f"Ephemeral signer bumps: {ephemeral_signer_bumps}")
+    ephemeral_signer_pdas = [
+        get_ephemeral_signer_pda(
+            transaction_pda=transaction_pda,
+            ephemeral_signer_index=additional_signer_index,
+            program_id=program_id,
+        )[0]
+        for additional_signer_index, _ in enumerate(ephemeral_signer_bumps)
     ]
+    print(f"Ephemeral signer pdas: {ephemeral_signer_pdas}")
 
     address_lookup_table_keys = [
         lookup.account_key for lookup in message.address_table_lookups
     ]
-    address_lookup_dict: dict[Pubkey, AddressLookupTableAccount] = {}
-
-    # Initialize RPC client
-    # TODO: double check if this is correct
-    async with connection as client:
-        # Create tasks for fetching all tables
-        lookup_tasks: list[tuple[Pubkey, AddressLookupTableAccount]] = []
-
-        # TODO: do it in concurrently
-        for key in address_lookup_table_keys:
-            response = await client.get_account_info(key, encoding="jsonParsed")
-            account_info = response.value
-            if account_info is None:
-                raise ValueError("Address lookup table account %s not found", key)
-
-            value_obj = AddressLookupTableAccount.from_bytes(account_info.data)
-
-            result = (key, value_obj)
-            lookup_tasks.extend([result])
-
-        address_lookup_dict = dict(lookup_tasks)
+    address_lookup_dict = await _create_address_lookup_table_accounts(
+        connection, address_lookup_table_keys
+    )
 
     # Populate account metas required for execution of the transaction.
-    account_metas: Sequence[AccountMeta] = []
+    account_metas: list[AccountMeta] = []
 
     # First add the lookup table accounts used by the transaction.
     # They are needed for on-chain validation.
@@ -181,19 +193,24 @@ async def accounts_for_transaction_execute(
 
     # Then add static account keys included into the message.
     for index, key in enumerate(message.account_keys):
-        pubkey = key
-        is_writable = is_static_writable_index(message, index)
-        # NOTE: vaultPda and ephemeralSignerPdas cannot be marked as signers,
-        # because they are PDAs and won't have
-        # their signatures on the transaction.
-        is_signer = (
-            is_signer_index(message, index)
-            and not key == vault_pda
-            and not any(key == k for k in ephemeral_signer_pdas)
-        )
+        is_ephemeral_signer = any(key == k for k in ephemeral_signer_pdas)
 
-        meta = AccountMeta(pubkey, is_writable, is_signer)
-        account_metas.extend([meta])
+        pubkey = key
+        # vaultPda and ephemeralSignerPdas cannot be marked as signers,
+        # they are PDAs and won't have their signatures on the transaction.
+        is_writable = is_static_writable_index(message, index)
+        print(f"Key: {key}, is ephemeral signer: {is_ephemeral_signer}")
+
+        meta = AccountMeta(
+            pubkey,
+            is_writable=is_writable,
+            is_signer=(
+                is_signer_index(message, index)
+                and key != vault_pda
+                and not is_ephemeral_signer
+            ),
+        )
+        account_metas.append(meta)
 
     # Then add accounts that will be loaded with address lookup tables.
     for lookup in message.address_table_lookups:
@@ -226,7 +243,4 @@ async def accounts_for_transaction_execute(
             meta = AccountMeta(pubkey, False, False)
             account_metas.extend([meta])
 
-    return {
-        "account_metas": account_metas,
-        "lookup_table_accounts": list(address_lookup_dict.values()),
-    }
+    return account_metas, list(address_lookup_dict.values())
