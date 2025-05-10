@@ -36,9 +36,11 @@ async def vault_transaction_execute(
 
     proposal_pda = get_proposal_pda(multisig_pda, transaction_index, program_id)[0]
     tx_pda = get_transaction_pda(multisig_pda, transaction_index, program_id)[0]
+
     tx_acc = await VaultTransaction.fetch(connection, tx_pda)
 
     assert tx_acc is not None, "Transaction account not found"
+    print(f"Transaction message: {tx_acc.message}")
 
     vault_pda = get_vault_pda(multisig_pda, tx_acc.vault_index, program_id)[0]
     ephemeral_signer_bump_seq = list(tx_acc.ephemeral_signer_bumps)
@@ -51,6 +53,7 @@ async def vault_transaction_execute(
         ephemeral_signer_bump_seq,
         program_id,
     )
+    print(f"Accounts metas: {account_metas}")
 
     accs = VaultTransactionExecuteAccounts(
         multisig=multisig_pda,
@@ -59,7 +62,6 @@ async def vault_transaction_execute(
         member=member,
     )
 
-    print(f"Accounts vault: {accs}")
     ix = vault_transaction_execute_instruction(
         accs,
         program_id,

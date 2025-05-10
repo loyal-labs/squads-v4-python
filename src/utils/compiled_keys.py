@@ -3,11 +3,92 @@ from dataclasses import dataclass
 
 from pydantic import BaseModel
 from solders.address_lookup_table_account import AddressLookupTableAccount
-from solders.instruction import Instruction
+from solders.instruction import CompiledInstruction, Instruction
 from solders.message import MessageAddressTableLookup, MessageHeader
 from solders.pubkey import Pubkey
 
-from src.utils.account_keys_from_lookups import AccountKeysFromLookups
+from src.utils.contants import U8_MAX
+
+
+@dataclass
+class AccountKeysFromLookups:
+    writable: list[Pubkey]
+    readonly: list[Pubkey]
+
+    @classmethod
+    def empty(cls) -> "AccountKeysFromLookups":
+        return cls(writable=[], readonly=[])
+
+
+class MessageAccountKeys:
+    def __init__(
+        self,
+        static_account_keys: Sequence[Pubkey],
+        account_keys_from_lookups: AccountKeysFromLookups | None = None,
+    ):
+        self.static_account_keys = static_account_keys
+        self.account_keys_from_lookups = account_keys_from_lookups
+
+    def __find_key_index(self, key_index_dict: dict[str, int], key: Pubkey) -> int:
+        idx = key_index_dict.get(str(key))
+        if idx is None:
+            raise ValueError(f"Key {key} not found in key_index_dict")
+        return idx
+
+    @property
+    def length(self) -> int:
+        return sum(len(s) for s in self.key_segments())
+
+    def key_segments(self) -> list[Sequence[Pubkey]]:
+        # seg 0: static keys
+        segments = [self.static_account_keys]
+        # seg 1: writable signers
+        # seg 2: readonly signers
+        if self.account_keys_from_lookups is not None:
+            segments.append(self.account_keys_from_lookups.writable)
+            segments.append(self.account_keys_from_lookups.readonly)
+        return segments
+
+    def get(self, index: int) -> Pubkey:
+        """
+        Given a flat index, return the corresponding key.
+        """
+        for segment in self.key_segments():
+            if index < len(segment):
+                return segment[index]
+            index -= len(segment)
+        raise IndexError(f"Index {index} is out of bounds")
+
+    def compile_instructions(
+        self, instructions: Sequence[Instruction]
+    ) -> list[CompiledInstruction]:
+        """
+        Compile a list of instructions into a list of CompiledInstructions.
+        """
+        if self.length > U8_MAX + 1:
+            raise ValueError("Account index overflow encountered")
+
+        # Build a dict pubkey -> flat index
+        flat_keys = [k for seg in self.key_segments() for k in seg]
+        key_index_dict = {str(pk): idx for idx, pk in enumerate(flat_keys)}
+
+        compiled_instructions: list[CompiledInstruction] = []
+        for ix in instructions:
+            # prog id index
+            pid_idx = self.__find_key_index(key_index_dict, ix.program_id)
+            # account meta's pubkey index
+            acc_idx_list = [
+                self.__find_key_index(key_index_dict, acct.pubkey)
+                for acct in ix.accounts
+            ]
+            compiled_instruction = CompiledInstruction(
+                program_id_index=pid_idx,
+                accounts=bytes(acc_idx_list),
+                data=ix.data,
+            )
+            compiled_instructions.append(compiled_instruction)
+
+        return compiled_instructions
 
 
 class CompiledKeyMeta(BaseModel):
@@ -139,15 +220,6 @@ class CompiledKeys:
             if not meta.is_signer and not meta.is_writable
         ]
 
-        # Ensure payer is the first writable signer
-        payer_str = str(self.payer)
-        if not writable_signers or writable_signers[0][0] != payer_str:
-            # Re-sort writable_signers to put payer first if it's not already.
-            # This might happen if payer wasn't explicitly
-            # the first key added with these properties.
-            # The logic in compile() should ensure payer is correctly marked.
-            writable_signers.sort(key=lambda item: item[0] != payer_str)
-
         header = MessageHeader(
             num_required_signatures=len(writable_signers) + len(readonly_signers),
             num_readonly_signed_accounts=len(readonly_signers),
@@ -156,25 +228,17 @@ class CompiledKeys:
 
         # Sanity checks
         assert len(writable_signers) > 0, "Expected at least one writable signer key"
-        assert writable_signers[0][0] == payer_str, (
+        assert writable_signers[0][0] == str(self.payer), (
             "Expected first writable signer key to be the fee payer"
         )
 
-        # Order: Payer & other writable signers, readonly signers,
-        # writable non-signers, readonly non-signers
         static_account_keys: Sequence[Pubkey] = []
 
         static_account_keys.extend(
-            Pubkey.from_string(address) for address, _ in writable_signers
-        )
-        static_account_keys.extend(
-            Pubkey.from_string(address) for address, _ in readonly_signers
-        )
-        static_account_keys.extend(
-            Pubkey.from_string(address) for address, _ in writable_non_signers
-        )
-        static_account_keys.extend(
-            Pubkey.from_string(address) for address, _ in readonly_non_signers
+            [Pubkey.from_string(address) for address, _ in writable_signers]
+            + [Pubkey.from_string(address) for address, _ in readonly_signers]
+            + [Pubkey.from_string(address) for address, _ in writable_non_signers]
+            + [Pubkey.from_string(address) for address, _ in readonly_non_signers]
         )
 
         return header, static_account_keys
@@ -227,8 +291,8 @@ class CompiledKeys:
         )
 
         account_keys_from_lookups = AccountKeysFromLookups(
-            writable=drained_writable_keys,
-            readonly=drained_readonly_keys,
+            writable=list(drained_writable_keys),
+            readonly=list(drained_readonly_keys),
         )
 
         return message_address_table_lookup, account_keys_from_lookups

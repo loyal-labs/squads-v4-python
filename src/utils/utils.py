@@ -100,17 +100,28 @@ def transaction_message_to_multisig_transaction_message_bytes(
     ]
 
     lut_table_lookups: list[MultisigMessageAddressTableLookupJSON] = []
-    for lut_account in address_lookup_table_accounts:
-        table = compiled_keys.extract_table_lookup(lut_account)
-        if table is None:
-            continue
-        msg_lut_table, _ = table
-        lut_obj = MultisigMessageAddressTableLookupJSON(
-            account_key=str(msg_lut_table.account_key),
-            writable_indexes=list(msg_lut_table.writable_indexes),
-            readonly_indexes=list(msg_lut_table.readonly_indexes),
+
+    for lut in compiled_message.address_table_lookups:
+        lut_table_lookups.append(
+            MultisigMessageAddressTableLookupJSON(
+                account_key=str(lut.account_key),
+                writable_indexes=list(lut.writable_indexes),
+                readonly_indexes=list(lut.readonly_indexes),
+            )
         )
-        lut_table_lookups.extend([lut_obj])
+    # lut_table_lookups: list[MultisigMessageAddressTableLookupJSON] = []
+
+    # for lut_account in address_lookup_table_accounts:
+    #     table = compiled_keys.extract_table_lookup(lut_account)
+    #     if table is None:
+    #         continue
+    #     msg_lut_table, _ = table
+    #     lut_obj = MultisigMessageAddressTableLookupJSON(
+    #         account_key=str(msg_lut_table.account_key),
+    #         writable_indexes=list(msg_lut_table.writable_indexes),
+    #         readonly_indexes=list(msg_lut_table.readonly_indexes),
+    #     )
+    #     lut_table_lookups.extend([lut_obj])
 
     acc_keys = [str(key) for key in compiled_message.account_keys]
     construct_dict = VaultTransactionMessageJSON(
@@ -151,8 +162,6 @@ async def _create_address_lookup_table_accounts(
         value_obj = AddressLookupTableAccount.from_bytes(value.data)
         lookup_tasks.extend([(key, value_obj)])
 
-    print(f"Lookup tasks: {len(lookup_tasks)}")
-
     return dict(lookup_tasks)
 
 
@@ -173,7 +182,6 @@ async def accounts_for_transaction_execute(
         )[0]
         for additional_signer_index, _ in enumerate(ephemeral_signer_bumps)
     ]
-    print(f"Ephemeral signer pdas: {ephemeral_signer_pdas}")
 
     address_lookup_table_keys = [
         lookup.account_key for lookup in message.address_table_lookups
@@ -199,7 +207,6 @@ async def accounts_for_transaction_execute(
         # vaultPda and ephemeralSignerPdas cannot be marked as signers,
         # they are PDAs and won't have their signatures on the transaction.
         is_writable = is_static_writable_index(message, index)
-        print(f"Key: {key}, is ephemeral signer: {is_ephemeral_signer}")
 
         meta = AccountMeta(
             pubkey,

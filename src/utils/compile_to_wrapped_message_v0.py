@@ -2,11 +2,14 @@ from collections.abc import Sequence
 
 from solders.address_lookup_table_account import AddressLookupTableAccount
 from solders.hash import Hash
-from solders.instruction import CompiledInstruction, Instruction
+from solders.instruction import Instruction
 from solders.message import MessageAddressTableLookup, MessageV0
-from solders.pubkey import Pubkey
 
-from src.utils.compiled_keys import CompiledKeys
+from src.utils.compiled_keys import (
+    AccountKeysFromLookups,
+    CompiledKeys,
+    MessageAccountKeys,
+)
 
 
 def compile_to_wrapped_message_v0(
@@ -38,9 +41,7 @@ def compile_to_wrapped_message_v0(
     """
 
     address_table_lookups_list: Sequence[MessageAddressTableLookup] = []
-    # These will store Pubkeys extracted into LUTs
-    lut_writable_keys: Sequence[Pubkey] = []
-    lut_readonly_keys: Sequence[Pubkey] = []
+    account_keys_from_lookups: AccountKeysFromLookups = AccountKeysFromLookups.empty()
 
     active_address_lookup_table_accounts = address_lookup_table_accounts or []
     # Iterate over a copy of items if modifying the dict during iteration
@@ -51,28 +52,17 @@ def compile_to_wrapped_message_v0(
             # This should not happen if CompiledKeys compile
             address_table_lookup, extracted_keys_from_lut = extract_result
             address_table_lookups_list.extend([address_table_lookup])
-            lut_writable_keys.extend(extracted_keys_from_lut.writable)
-            lut_readonly_keys.extend(extracted_keys_from_lut.readonly)
+            account_keys_from_lookups.writable.extend(extracted_keys_from_lut.writable)
+            account_keys_from_lookups.readonly.extend(extracted_keys_from_lut.readonly)
 
-    header, static_keys_list = compiled_keys.get_message_components()
+    header, static_account_keys = compiled_keys.get_message_components()
 
-    # Convert instructions to CompiledInstruction
-    compiled_instructions: Sequence[CompiledInstruction] = []
-    for ix in instructions:
-        prog_idx = static_keys_list.index(ix.program_id)
-        acc_idx = [static_keys_list.index(acct.pubkey) for acct in ix.accounts]
-        acc_idx_bytes = bytes(acc_idx)
-
-        compiled_instruction = CompiledInstruction(
-            program_id_index=prog_idx,
-            accounts=acc_idx_bytes,
-            data=ix.data,
-        )
-        compiled_instructions.extend([compiled_instruction])
+    account_keys = MessageAccountKeys(static_account_keys, account_keys_from_lookups)
+    compiled_instructions = account_keys.compile_instructions(instructions)
 
     return MessageV0(
         header=header,
-        account_keys=static_keys_list,
+        account_keys=static_account_keys,
         recent_blockhash=recent_blockhash,
         instructions=compiled_instructions,
         address_table_lookups=address_table_lookups_list,

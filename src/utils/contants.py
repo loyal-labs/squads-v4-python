@@ -1,1 +1,2 @@
 MAX_SAFE_INTEGER = 2**63 - 1
+U8_MAX = 2**8 - 1

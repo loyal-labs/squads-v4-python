@@ -42,6 +42,8 @@ async def vault_transaction_execute(
         program_id,
     )
 
+    print(ix)
+
     message_v0 = MessageV0.try_compile(
         fee_payer,
         [ix],
