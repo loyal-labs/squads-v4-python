@@ -19,6 +19,7 @@ from src.generated.types.vault_transaction_message import (
     VaultTransactionMessageJSON,
 )
 from src.pda import get_ephemeral_signer_pda
+from src.types import TransactionMessageConstruct
 from src.utils.compile_to_wrapped_message_v0 import compile_to_wrapped_message_v0
 from src.utils.compiled_keys import CompiledKeys
 
@@ -81,10 +82,8 @@ def transaction_message_to_multisig_transaction_message_bytes(
     address_lookup_table_accounts: list[AddressLookupTableAccount],
     vault_pda: Pubkey,
 ) -> bytes:
-    compiled_keys = CompiledKeys.compile(transaction_instructions, transaction_payer)
-
     compiled_message = compile_to_wrapped_message_v0(
-        compiled_keys=compiled_keys,
+        payer_key=transaction_payer,
         recent_blockhash=transaction_recent_blockhash,
         instructions=transaction_instructions,
         address_lookup_table_accounts=address_lookup_table_accounts,
@@ -109,21 +108,9 @@ def transaction_message_to_multisig_transaction_message_bytes(
                 readonly_indexes=list(lut.readonly_indexes),
             )
         )
-    # lut_table_lookups: list[MultisigMessageAddressTableLookupJSON] = []
-
-    # for lut_account in address_lookup_table_accounts:
-    #     table = compiled_keys.extract_table_lookup(lut_account)
-    #     if table is None:
-    #         continue
-    #     msg_lut_table, _ = table
-    #     lut_obj = MultisigMessageAddressTableLookupJSON(
-    #         account_key=str(msg_lut_table.account_key),
-    #         writable_indexes=list(msg_lut_table.writable_indexes),
-    #         readonly_indexes=list(msg_lut_table.readonly_indexes),
-    #     )
-    #     lut_table_lookups.extend([lut_obj])
 
     acc_keys = [str(key) for key in compiled_message.account_keys]
+
     construct_dict = VaultTransactionMessageJSON(
         num_signers=compiled_message.header.num_required_signatures,
         num_writable_signers=compiled_message.header.num_required_signatures

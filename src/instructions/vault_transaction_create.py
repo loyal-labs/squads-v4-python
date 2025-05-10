@@ -16,6 +16,9 @@ from src.generated.program_id import PROGRAM_ID
 from src.generated.types.vault_transaction_create_args import (
     VaultTransactionCreateArgs as VaultTransactionCreateArgsType,
 )
+from src.generated.types.vault_transaction_create_args import (
+    VaultTransactionCreateArgsJSON,
+)
 from src.pda import get_transaction_pda, get_vault_pda
 from src.utils.utils import transaction_message_to_multisig_transaction_message_bytes
 
@@ -76,14 +79,15 @@ def vault_transaction_create(
         creator=creator,
         rent_payer=rent_payer,
     )
+    args = VaultTransactionCreateArgsJSON(
+        vault_index=vault_index,
+        ephemeral_signers=ephemeral_signers,
+        transaction_message=list(transaction_message_bytes),
+        memo=memo,
+    )
 
     args = VaultTransactionCreateArgs(
-        args=VaultTransactionCreateArgsType(
-            vault_index=vault_index,
-            ephemeral_signers=ephemeral_signers,
-            transaction_message=transaction_message_bytes,
-            memo=memo,
-        )
+        args=VaultTransactionCreateArgsType.from_json(args)
     )
 
     return vault_transaction_create_instruction(

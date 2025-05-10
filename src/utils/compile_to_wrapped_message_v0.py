@@ -4,6 +4,7 @@ from solders.address_lookup_table_account import AddressLookupTableAccount
 from solders.hash import Hash
 from solders.instruction import Instruction
 from solders.message import MessageAddressTableLookup, MessageV0
+from solders.pubkey import Pubkey
 
 from src.utils.compiled_keys import (
     AccountKeysFromLookups,
@@ -13,7 +14,7 @@ from src.utils.compiled_keys import (
 
 
 def compile_to_wrapped_message_v0(
-    compiled_keys: CompiledKeys,
+    payer_key: Pubkey,
     recent_blockhash: Hash,
     instructions: Sequence[Instruction],
     address_lookup_table_accounts: Sequence[AddressLookupTableAccount] | None = None,
@@ -39,6 +40,7 @@ def compile_to_wrapped_message_v0(
     Returns:
         A MessageV0 object ready for transaction signing and sending.
     """
+    compiled_keys = CompiledKeys.compile(instructions, payer_key)
 
     address_table_lookups_list: Sequence[MessageAddressTableLookup] = []
     account_keys_from_lookups: AccountKeysFromLookups = AccountKeysFromLookups.empty()
