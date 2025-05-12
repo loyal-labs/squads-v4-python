@@ -119,7 +119,7 @@ def transaction_message_to_multisig_transaction_message_bytes(
     transaction_payer: Pubkey,
     transaction_recent_blockhash: Hash,
     transaction_instructions: list[Instruction],
-    address_lookup_table_accounts: list[AddressLookupTableAccount],
+    address_lookup_table_accounts: list[AddressLookupTableAccount] | None,
 ) -> bytes:
     compiled_message = compile_to_wrapped_message_v0(
         payer_key=transaction_payer,
@@ -198,7 +198,6 @@ async def accounts_for_transaction_execute(
     ephemeral_signer_bumps: Sequence[int],
     program_id: Pubkey | None,
 ) -> tuple[list[AccountMeta], list[AddressLookupTableAccount]]:
-    print(f"Ephemeral signer bumps: {ephemeral_signer_bumps}")
     ephemeral_signer_pdas = [
         PDA.get_ephemeral_signer_pda(
             transaction_pda=transaction_pda,

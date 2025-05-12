@@ -7,6 +7,7 @@ from solders.rpc.responses import SendTransactionResp
 from solders.transaction import Signer
 
 from generated.types.period import PeriodKind
+from src.generated.program_id import PROGRAM_ID
 from src.transactions.multisig_add_spending_limit import (
     multisig_add_spending_limit as create_transaction,
 )
@@ -26,41 +27,38 @@ async def multisig_add_spending_limit(
     period: PeriodKind,
     members: list[Pubkey],
     destinations: list[Pubkey],
-    memo: str | None,
-    signers: Sequence[Signer] | None,
-    send_options: TxOpts | None,
-    program_id: Pubkey | None,
+    memo: str | None = None,
+    signers: Sequence[Signer] | None = None,
+    send_options: TxOpts | None = None,
+    program_id: Pubkey | None = PROGRAM_ID,
 ) -> SendTransactionResp:
     """ """
-    try:
-        assert isinstance(connection, AsyncClient)
-        assert isinstance(fee_payer, Signer)
-        assert isinstance(multisig_pda, Pubkey)
-        assert isinstance(config_authority, Pubkey)
-        assert isinstance(rent_payer, Signer)
-        assert isinstance(create_key, Pubkey)
-        assert isinstance(vault_index, int)
-        assert isinstance(mint, Pubkey)
-        assert isinstance(amount, int)
-        assert isinstance(period, PeriodKind)
-        assert isinstance(members, list)
-        assert isinstance(destinations, list)
-        assert isinstance(memo, str) or memo is None
-        assert isinstance(signers, Sequence) or signers is None
-        assert isinstance(send_options, TxOpts) or send_options is None
-        assert isinstance(program_id, Pubkey) or program_id is None
-    except AssertionError:
-        raise ValueError("Invalid argument") from None
+    assert isinstance(connection, AsyncClient)
+    assert isinstance(fee_payer, Signer)
+    assert isinstance(multisig_pda, Pubkey)
+    assert isinstance(config_authority, Pubkey)
+    assert isinstance(rent_payer, Signer)
+    assert isinstance(create_key, Pubkey)
+    assert isinstance(vault_index, int)
+    assert isinstance(mint, Pubkey)
+    assert isinstance(amount, int)
+    assert isinstance(period, PeriodKind)
+    assert isinstance(members, list)
+    assert isinstance(destinations, list)
+    assert isinstance(memo, str) or memo is None
+    assert isinstance(signers, Sequence) or signers is None
+    assert isinstance(send_options, TxOpts) or send_options is None
+    assert isinstance(program_id, Pubkey)
 
     blockhash = (await connection.get_latest_blockhash()).value.blockhash
 
     tx = create_transaction(
         blockhash,
-        fee_payer.pubkey(),
+        fee_payer,
         multisig_pda,
         config_authority,
         spending_limit,
-        rent_payer.pubkey(),
+        rent_payer,
         create_key,
         vault_index,
         mint,
@@ -70,6 +68,7 @@ async def multisig_add_spending_limit(
         destinations,
         memo,
         program_id,
+        signers,
     )
 
     try:

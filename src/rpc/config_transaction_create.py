@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from typing import Annotated
 
 from solana.rpc.async_api import AsyncClient
 from solana.rpc.types import TxOpts
@@ -7,6 +8,7 @@ from solders.rpc.responses import SendTransactionResp
 from solders.transaction import Signer
 
 from generated.types.config_action import ConfigActionKind
+from src._internal.utils import get_recent_blockhash
 from src.generated.program_id import PROGRAM_ID
 from src.transactions.config_transaction_create import (
     config_transaction_create as create_transaction,
@@ -18,20 +20,24 @@ async def config_transaction_create(
     fee_payer: Signer,
     multisig_pda: Pubkey,
     transaction_index: int,
-    creator: Signer,
-    rent_payer: Pubkey,
+    # Member of the multisig that is creating the transaction.
+    creator: Annotated[Pubkey, "Member creating the transaction"],
     actions: list[ConfigActionKind],
-    memo: str | None,
-    signers: Sequence[Signer] | None,
-    send_options: TxOpts | None,
+    # Payer for the txn account rent. If not provided, `creator` is used.
+    rent_payer: Annotated[Pubkey | None, "Payer for the txn account rent"] = None,
+    memo: str | None = None,
+    signers: Sequence[Signer] | None = None,
+    send_options: TxOpts | None = None,
     program_id: Pubkey = PROGRAM_ID,
 ) -> SendTransactionResp:
-    """ """
+    """
+    Needs to be signed by config authority and fee payer before sending it.
+    """
     assert isinstance(connection, AsyncClient)
     assert isinstance(fee_payer, Signer)
     assert isinstance(multisig_pda, Pubkey)
     assert isinstance(transaction_index, int)
-    assert isinstance(creator, Signer)
+    assert isinstance(creator, Pubkey)
     assert isinstance(rent_payer, Pubkey)
     assert isinstance(actions, list)
     assert isinstance(memo, str) or memo is None
@@ -39,10 +45,8 @@ async def config_transaction_create(
     assert isinstance(send_options, TxOpts) or send_options is None
     assert isinstance(program_id, Pubkey) or program_id is None
 
-    blockhash = (await connection.get_latest_blockhash()).value.blockhash
-
     tx = create_transaction(
-        blockhash,
+        await get_recent_blockhash(connection),
         fee_payer,
         multisig_pda,
         transaction_index,
@@ -51,6 +55,7 @@ async def config_transaction_create(
         actions,
         memo,
         program_id,
+        signers,
     )
 
     try:

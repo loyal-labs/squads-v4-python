@@ -1,9 +1,10 @@
+from collections.abc import Sequence
+
 from solana.rpc.async_api import AsyncClient
 from solders.hash import Hash
 from solders.message import MessageV0
 from solders.pubkey import Pubkey
-from solders.signature import Signature
-from solders.transaction import VersionedTransaction
+from solders.transaction import Signer, VersionedTransaction
 
 from src.instructions.vault_transaction_execute import (
     vault_transaction_execute as create_instruction,
@@ -13,26 +14,25 @@ from src.instructions.vault_transaction_execute import (
 async def vault_transaction_execute(
     connection: AsyncClient,
     blockhash: Hash,
-    fee_payer: Pubkey,
+    fee_payer: Signer,
     multisig_pda: Pubkey,
     transaction_index: int,
     member: Pubkey,
-    program_id: Pubkey | None,
+    program_id: Pubkey,
+    signers: Sequence[Signer] | None,
 ) -> VersionedTransaction:
     """
-    Returns unsigned `VersionedTransaction` that needs to be
+    Returns `VersionedTransaction` that needs to be
     signed by `member` and `fee_payer` before sending it.
     """
-    try:
-        assert isinstance(blockhash, Hash)
-        assert isinstance(connection, AsyncClient)
-        assert isinstance(fee_payer, Pubkey)
-        assert isinstance(multisig_pda, Pubkey)
-        assert isinstance(transaction_index, int)
-        assert isinstance(member, Pubkey)
-        assert isinstance(program_id, Pubkey) or program_id is None
-    except AssertionError:
-        raise ValueError("Invalid argument") from None
+    assert isinstance(blockhash, Hash)
+    assert isinstance(connection, AsyncClient)
+    assert isinstance(fee_payer, Signer)
+    assert isinstance(multisig_pda, Pubkey)
+    assert isinstance(transaction_index, int)
+    assert isinstance(member, Pubkey)
+    assert isinstance(program_id, Pubkey)
+    assert isinstance(signers, Sequence) or signers is None
 
     ix, lookup_table_accounts = await create_instruction(
         connection,
@@ -42,16 +42,16 @@ async def vault_transaction_execute(
         program_id,
     )
 
-    print(ix)
-
     message_v0 = MessageV0.try_compile(
-        fee_payer,
+        fee_payer.pubkey(),
         [ix],
         lookup_table_accounts,
         blockhash,
     )
-    num_signers = message_v0.header.num_required_signatures
-    signers = [Signature.default() for _ in range(num_signers)]
-    versioned_tx = VersionedTransaction.populate(message_v0, signers)
+    signers_list = [fee_payer]
+    if signers is not None:
+        signers_list.extend(signers)
+
+    versioned_tx = VersionedTransaction(message_v0, signers_list)
 
     return versioned_tx

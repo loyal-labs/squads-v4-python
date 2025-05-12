@@ -1,8 +1,9 @@
+from collections.abc import Sequence
+
 from solders.hash import Hash
 from solders.message import MessageV0
 from solders.pubkey import Pubkey
-from solders.signature import Signature
-from solders.transaction import VersionedTransaction
+from solders.transaction import Signer, VersionedTransaction
 
 from src.instructions.multisig_remove_member import (
     multisig_remove_member as create_instruction,
@@ -11,28 +12,23 @@ from src.instructions.multisig_remove_member import (
 
 def multisig_remove_member(
     blockhash: Hash,
-    fee_payer: Pubkey,
+    fee_payer: Signer,
     multisig_pda: Pubkey,
     config_authority: Pubkey,
     old_member: Pubkey,
     memo: str | None,
     program_id: Pubkey | None,
+    signers: Sequence[Signer] | None = None,
 ) -> VersionedTransaction:
-    """
-    Returns unsigned `VersionedTransaction` that needs to be
-    signed by `configAuthority` and `feePayer` before sending it.
-    """
-    try:
-        assert isinstance(blockhash, Hash)
-        assert isinstance(fee_payer, Pubkey)
-        assert isinstance(multisig_pda, Pubkey)
-        assert isinstance(config_authority, Pubkey)
-        assert isinstance(old_member, Pubkey)
-        assert isinstance(memo, str) or memo is None
-        assert isinstance(program_id, Pubkey) or program_id is None
-    except AssertionError:
-        raise ValueError("Invalid argument") from None
-
+    """ """
+    assert isinstance(blockhash, Hash)
+    assert isinstance(fee_payer, Signer)
+    assert isinstance(multisig_pda, Pubkey)
+    assert isinstance(config_authority, Pubkey)
+    assert isinstance(old_member, Pubkey)
+    assert isinstance(memo, str) or memo is None
+    assert isinstance(program_id, Pubkey) or program_id is None
+    assert isinstance(signers, Sequence) or signers is None
     ix = create_instruction(
         multisig_pda,
         config_authority,
@@ -41,14 +37,18 @@ def multisig_remove_member(
         program_id,
     )
     message_v0 = MessageV0.try_compile(
-        fee_payer,
+        fee_payer.pubkey(),
         [ix],
         [],
         blockhash,
     )
-    num_signers = message_v0.header.num_required_signatures
-    signers = [Signature.default() for _ in range(num_signers)]
+    signers_list = [fee_payer]
+    if signers is not None:
+        signers_list.extend(signers)
 
-    versioned_tx = VersionedTransaction.populate(message_v0, signers)
+    # only unique signers
+    signers_list = list(set(signers_list))
+
+    versioned_tx = VersionedTransaction(message_v0, signers_list)
 
     return versioned_tx

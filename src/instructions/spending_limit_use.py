@@ -9,7 +9,6 @@ from src.generated.instructions.spending_limit_use import (
 from src.generated.instructions.spending_limit_use import (
     spending_limit_use as spending_limit_use_instruction,
 )
-from src.generated.program_id import PROGRAM_ID
 from src.generated.types.spending_limit_use_args import (
     SpendingLimitUseArgs as SpendingLimitUseArgsType,
 )
@@ -20,47 +19,53 @@ def spending_limit_use(
     multisig_pda: Pubkey,
     member: Pubkey,
     spending_limit: Pubkey,
-    mint: Pubkey,
+    mint: Pubkey | None,
     vault_index: int,
     amount: int,
     decimals: int,
     destination: Pubkey,
-    token_program: Pubkey,
+    token_program: Pubkey | None,
     memo: str | None,
-    program_id: Pubkey | None,
+    program_id: Pubkey,
 ) -> Instruction:
-    if program_id is None:
-        program_id = PROGRAM_ID
-
-    try:
-        assert isinstance(multisig_pda, Pubkey)
-        assert isinstance(member, Pubkey)
-        assert isinstance(spending_limit, Pubkey)
-        assert isinstance(mint, Pubkey)
-        assert isinstance(vault_index, int)
-        assert isinstance(amount, int)
-        assert isinstance(decimals, int)
-        assert isinstance(destination, Pubkey)
-        assert isinstance(token_program, Pubkey)
-        assert isinstance(memo, str) or memo is None
-        assert isinstance(program_id, Pubkey)
-    except AssertionError:
-        raise ValueError("Invalid argument") from None
+    assert isinstance(multisig_pda, Pubkey)
+    assert isinstance(member, Pubkey)
+    assert isinstance(spending_limit, Pubkey)
+    assert isinstance(mint, Pubkey) or mint is None
+    assert isinstance(vault_index, int)
+    assert isinstance(amount, int)
+    assert isinstance(decimals, int)
+    assert isinstance(destination, Pubkey)
+    assert isinstance(token_program, Pubkey) or token_program is None
+    assert isinstance(memo, str) or memo is None
+    assert isinstance(program_id, Pubkey)
 
     vault_pda = PDA.get_vault_pda(multisig_pda, vault_index, program_id)[0]
-    vault_token_ass_address = get_associated_token_address(
-        vault_pda,
-        mint,
-        token_program,
-    )
-    vault_token_account = mint and vault_token_ass_address
 
-    destination_token_ass_address = get_associated_token_address(
-        destination,
-        mint,
-        token_program,
-    )
-    destination_token_account = mint and destination_token_ass_address
+    if mint is not None:
+        if token_program is None:
+            vault_token_ass_address = get_associated_token_address(
+                vault_pda,
+                mint,
+            )
+            destination_token_ass_address = get_associated_token_address(
+                destination,
+                mint,
+            )
+        else:
+            vault_token_ass_address = get_associated_token_address(
+                vault_pda,
+                mint,
+                token_program,
+            )
+            destination_token_ass_address = get_associated_token_address(
+                destination,
+                mint,
+                token_program,
+            )
+    else:
+        vault_token_ass_address = None
+        destination_token_ass_address = None
 
     accounts = SpendingLimitUseAccounts(
         multisig=multisig_pda,
@@ -69,8 +74,8 @@ def spending_limit_use(
         vault=vault_pda,
         destination=destination,
         mint=mint,
-        vault_token_account=vault_token_account,
-        destination_token_account=destination_token_account,
+        vault_token_account=vault_token_ass_address,
+        destination_token_account=destination_token_ass_address,
     )
 
     args = SpendingLimitUseArgs(

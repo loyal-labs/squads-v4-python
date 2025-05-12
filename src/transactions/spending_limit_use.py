@@ -1,50 +1,46 @@
 from solders.hash import Hash
 from solders.message import MessageV0
 from solders.pubkey import Pubkey
-from solders.signature import Signature
-from solders.transaction import VersionedTransaction
+from solders.transaction import Signer, VersionedTransaction
 
 from src.instructions.spending_limit_use import spending_limit_use as create_instruction
 
 
 def spending_limit_use(
     blockhash: Hash,
-    fee_payer: Pubkey,
+    fee_payer: Signer,
     multisig_pda: Pubkey,
-    member: Pubkey,
+    member: Signer,
     spending_limit: Pubkey,
-    mint: Pubkey,
+    mint: Pubkey | None,
     vault_index: int,
     amount: int,
     decimals: int,
     destination: Pubkey,
-    token_program: Pubkey,
+    token_program: Pubkey | None,
     memo: str | None,
-    program_id: Pubkey | None,
+    program_id: Pubkey,
 ) -> VersionedTransaction:
     """
     Returns unsigned `VersionedTransaction` that needs to be
     signed by `member` and `feePayer` before sending it.
     """
-    try:
-        assert isinstance(fee_payer, Pubkey)
-        assert isinstance(multisig_pda, Pubkey)
-        assert isinstance(member, Pubkey)
-        assert isinstance(spending_limit, Pubkey)
-        assert isinstance(mint, Pubkey)
-        assert isinstance(vault_index, int)
-        assert isinstance(amount, int)
-        assert isinstance(decimals, int)
-        assert isinstance(destination, Pubkey)
-        assert isinstance(token_program, Pubkey)
-        assert isinstance(memo, str) or memo is None
-        assert isinstance(program_id, Pubkey) or program_id is None
-    except AssertionError:
-        raise ValueError("Invalid argument") from None
+    assert isinstance(fee_payer, Signer)
+    assert isinstance(multisig_pda, Pubkey)
+    assert isinstance(member, Signer)
+    assert isinstance(spending_limit, Pubkey)
+    assert isinstance(mint, Pubkey) or mint is None
+    assert isinstance(vault_index, int)
+    assert isinstance(amount, int)
+    assert isinstance(decimals, int)
+    assert isinstance(destination, Pubkey)
+    assert isinstance(token_program, Pubkey) or token_program is None
+    assert isinstance(memo, str) or memo is None
+    assert isinstance(program_id, Pubkey)
 
     ix = create_instruction(
         multisig_pda,
-        member,
+        member.pubkey(),
         spending_limit,
         mint,
         vault_index,
@@ -56,14 +52,15 @@ def spending_limit_use(
         program_id,
     )
     message_v0 = MessageV0.try_compile(
-        fee_payer,
+        fee_payer.pubkey(),
         [ix],
         [],
         blockhash,
     )
-    num_signers = message_v0.header.num_required_signatures
-    signers = [Signature.default() for _ in range(num_signers)]
+    signers_list = [fee_payer, member]
+    # unique signers
+    signers = list(set(signers_list))
 
-    versioned_tx = VersionedTransaction.populate(message_v0, signers)
+    versioned_tx = VersionedTransaction(message_v0, signers)
 
     return versioned_tx

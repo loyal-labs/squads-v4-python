@@ -1,9 +1,13 @@
+from typing import Annotated
+
 from solana.rpc.async_api import AsyncClient
 from solana.rpc.types import TxOpts
 from solders.pubkey import Pubkey
 from solders.rpc.responses import SendTransactionResp
 from solders.transaction import Signer
 
+from src._internal.utils import get_recent_blockhash
+from src.generated.program_id import PROGRAM_ID
 from src.transactions.spending_limit_use import spending_limit_use as create_transaction
 
 
@@ -13,42 +17,44 @@ async def spending_limit_use(
     member: Signer,
     multisig_pda: Pubkey,
     spending_limit: Pubkey,
-    mint: Pubkey,
     vault_index: int,
     amount: int,
     decimals: int,
     destination: Pubkey,
-    token_program: Pubkey,
-    memo: str | None,
-    send_options: TxOpts | None,
-    program_id: Pubkey | None,
+    token_program: Pubkey | None = None,
+    mint: Annotated[
+        Pubkey | None,
+        ("Provide if `spendingLimit` is for an SPL token, omit if it's for SOL."),
+    ] = None,
+    memo: str | None = None,
+    send_options: TxOpts | None = None,
+    program_id: Pubkey = PROGRAM_ID,
 ) -> SendTransactionResp:
-    """ """
-    try:
-        assert isinstance(connection, AsyncClient)
-        assert isinstance(fee_payer, Signer)
-        assert isinstance(member, Signer)
-        assert isinstance(multisig_pda, Pubkey)
-        assert isinstance(spending_limit, Pubkey)
-        assert isinstance(mint, Pubkey)
-        assert isinstance(vault_index, int)
-        assert isinstance(amount, int)
-        assert isinstance(decimals, int)
-        assert isinstance(destination, Pubkey)
-        assert isinstance(token_program, Pubkey)
-        assert isinstance(memo, str) or memo is None
-        assert isinstance(send_options, TxOpts) or send_options is None
-        assert isinstance(program_id, Pubkey) or program_id is None
-    except AssertionError:
-        raise ValueError("Invalid argument") from None
+    """
+    Use a spending limit.
 
-    blockhash = (await connection.get_latest_blockhash()).value.blockhash
+    Must be signed by `feePayer` and `member`.
+    """
+    assert isinstance(connection, AsyncClient)
+    assert isinstance(fee_payer, Signer)
+    assert isinstance(member, Signer)
+    assert isinstance(multisig_pda, Pubkey)
+    assert isinstance(spending_limit, Pubkey)
+    assert isinstance(mint, Pubkey) or mint is None
+    assert isinstance(vault_index, int)
+    assert isinstance(amount, int)
+    assert isinstance(decimals, int)
+    assert isinstance(destination, Pubkey)
+    assert isinstance(token_program, Pubkey) or token_program is None
+    assert isinstance(memo, str) or memo is None
+    assert isinstance(send_options, TxOpts) or send_options is None
+    assert isinstance(program_id, Pubkey)
 
     tx = create_transaction(
-        blockhash,
-        fee_payer.pubkey(),
+        await get_recent_blockhash(connection),
+        fee_payer,
         multisig_pda,
-        member.pubkey(),
+        member,
         spending_limit,
         mint,
         vault_index,

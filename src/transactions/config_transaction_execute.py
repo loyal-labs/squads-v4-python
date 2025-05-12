@@ -1,8 +1,9 @@
+from collections.abc import Sequence
+
 from solders.hash import Hash
 from solders.message import MessageV0
 from solders.pubkey import Pubkey
-from solders.signature import Signature
-from solders.transaction import VersionedTransaction
+from solders.transaction import Signer, VersionedTransaction
 
 from src.instructions.config_transaction_execute import (
     config_transaction_execute as create_instruction,
@@ -11,29 +12,24 @@ from src.instructions.config_transaction_execute import (
 
 def config_transaction_execute(
     blockhash: Hash,
-    fee_payer: Pubkey,
+    fee_payer: Signer,
     multisig_pda: Pubkey,
     transaction_index: int,
-    member: Pubkey,
-    rent_payer: Pubkey,
+    member: Signer,
+    rent_payer: Signer,
     spending_limits: list[Pubkey],
     program_id: Pubkey | None,
+    signers: Sequence[Signer] | None = None,
 ) -> VersionedTransaction:
-    """
-    Returns unsigned `VersionedTransaction` that needs to be
-    signed by `configAuthority` and `feePayer` before sending it.
-    """
-    try:
-        assert isinstance(blockhash, Hash)
-        assert isinstance(fee_payer, Pubkey)
-        assert isinstance(multisig_pda, Pubkey)
-        assert isinstance(transaction_index, int)
-        assert isinstance(member, Pubkey)
-        assert isinstance(rent_payer, Pubkey)
-        assert isinstance(spending_limits, list)
-        assert isinstance(program_id, Pubkey) or program_id is None
-    except AssertionError:
-        raise ValueError("Invalid argument") from None
+    """Execute a config transaction."""
+    assert isinstance(blockhash, Hash)
+    assert isinstance(fee_payer, Signer)
+    assert isinstance(multisig_pda, Pubkey)
+    assert isinstance(transaction_index, int)
+    assert isinstance(member, Pubkey)
+    assert isinstance(rent_payer, Pubkey)
+    assert isinstance(spending_limits, list)
+    assert isinstance(program_id, Pubkey) or program_id is None
 
     ix = create_instruction(
         multisig_pda,
@@ -44,14 +40,20 @@ def config_transaction_execute(
         program_id,
     )
     message_v0 = MessageV0.try_compile(
-        fee_payer,
+        fee_payer.pubkey(),
         [ix],
         [],
         blockhash,
     )
-    num_signers = message_v0.header.num_required_signatures
-    signers = [Signature.default() for _ in range(num_signers)]
 
-    versioned_tx = VersionedTransaction.populate(message_v0, signers)
+    signers_array = [fee_payer, member, rent_payer]
+
+    if signers is not None:
+        signers_array.extend(signers)
+
+    # only unique signers
+    signers_array = list(set(signers_array))
+
+    versioned_tx = VersionedTransaction(message_v0, signers_array)
 
     return versioned_tx

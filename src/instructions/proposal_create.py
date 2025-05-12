@@ -9,7 +9,6 @@ from src.generated.instructions.proposal_create import (
 from src.generated.instructions.proposal_create import (
     proposal_create as proposal_create_instruction,
 )
-from src.generated.program_id import PROGRAM_ID
 from src.generated.types.proposal_create_args import (
     ProposalCreateArgs as ProposalCreateArgsType,
 )
@@ -21,24 +20,15 @@ def proposal_create(
     creator: Pubkey,
     rent_payer: Pubkey | None,
     transaction_index: int,
-    is_draft: bool | None,
-    program_id: Pubkey | None,
+    is_draft: bool,
+    program_id: Pubkey,
 ) -> Instruction:
-    if program_id is None:
-        program_id = PROGRAM_ID
-
-    if is_draft is None:
-        is_draft = False
-
-    try:
-        assert isinstance(multisig_pda, Pubkey)
-        assert isinstance(creator, Pubkey)
-        assert isinstance(rent_payer, Pubkey) or rent_payer is None
-        assert isinstance(transaction_index, int)
-        assert isinstance(is_draft, bool) or is_draft is None
-        assert isinstance(program_id, Pubkey)
-    except AssertionError:
-        raise ValueError("Invalid argument") from None
+    assert isinstance(multisig_pda, Pubkey)
+    assert isinstance(creator, Pubkey)
+    assert isinstance(rent_payer, Pubkey) or rent_payer is None
+    assert isinstance(transaction_index, int)
+    assert isinstance(is_draft, bool)
+    assert isinstance(program_id, Pubkey)
 
     proposal_pda = PDA.get_proposal_pda(multisig_pda, transaction_index, program_id)[0]
 

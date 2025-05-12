@@ -1,7 +1,8 @@
+from collections.abc import Sequence
+
 from solders.hash import Hash
 from solders.message import MessageV0
 from solders.pubkey import Pubkey
-from solders.signature import Signature
 from solders.transaction import Signer, VersionedTransaction
 
 from src.generated.types.config_action import ConfigActionKind
@@ -15,30 +16,27 @@ def config_transaction_create(
     fee_payer: Signer,
     multisig_pda: Pubkey,
     transaction_index: int,
-    creator: Signer,
+    creator: Pubkey,
     rent_payer: Pubkey,
     actions: list[ConfigActionKind],
     memo: str | None,
-    program_id: Pubkey | None,
+    program_id: Pubkey,
+    signers: Sequence[Signer] | None = None,
 ) -> VersionedTransaction:
-    """
-    Returns `VersionedTransaction` that needs to be
-    signed by `configAuthority` and `feePayer` before sending it.
-    """
     assert isinstance(blockhash, Hash)
     assert isinstance(fee_payer, Signer)
     assert isinstance(multisig_pda, Pubkey)
     assert isinstance(transaction_index, int)
-    assert isinstance(creator, Signer)
+    assert isinstance(creator, Pubkey)
     assert isinstance(rent_payer, Pubkey)
     assert isinstance(actions, list)
     assert isinstance(memo, str) or memo is None
-    assert isinstance(program_id, Pubkey) or program_id is None
+    assert isinstance(program_id, Pubkey)
 
     ix = create_instruction(
         multisig_pda,
         transaction_index,
-        creator.pubkey(),
+        creator,
         rent_payer,
         actions,
         memo,
@@ -54,6 +52,13 @@ def config_transaction_create(
     except Exception as e:
         raise e from None
 
-    versioned_tx = VersionedTransaction(message_v0, [fee_payer])
+    signers_array = [fee_payer]
+    if signers is not None:
+        signers_array.extend(signers)
+
+    # only unique signers
+    signers_array = list(set(signers_array))
+
+    versioned_tx = VersionedTransaction(message_v0, signers_array)
 
     return versioned_tx
