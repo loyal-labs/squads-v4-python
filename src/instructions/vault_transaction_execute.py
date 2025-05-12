@@ -3,6 +3,7 @@ from solders.address_lookup_table_account import AddressLookupTableAccount
 from solders.instruction import Instruction
 from solders.pubkey import Pubkey
 
+from src._internal.utils import accounts_for_transaction_execute
 from src.generated.accounts.vault_transaction import VaultTransaction
 from src.generated.instructions.vault_transaction_execute import (
     VaultTransactionExecuteAccounts,
@@ -11,8 +12,7 @@ from src.generated.instructions.vault_transaction_execute import (
     vault_transaction_execute as vault_transaction_execute_instruction,
 )
 from src.generated.program_id import PROGRAM_ID
-from src.pda import get_proposal_pda, get_transaction_pda, get_vault_pda
-from src.utils.utils import accounts_for_transaction_execute
+from src.pda import PDA
 
 
 async def vault_transaction_execute(
@@ -34,15 +34,15 @@ async def vault_transaction_execute(
     except AssertionError:
         raise ValueError("Invalid argument") from None
 
-    proposal_pda = get_proposal_pda(multisig_pda, transaction_index, program_id)[0]
-    tx_pda = get_transaction_pda(multisig_pda, transaction_index, program_id)[0]
+    proposal_pda = PDA.get_proposal_pda(multisig_pda, transaction_index, program_id)[0]
+    tx_pda = PDA.get_transaction_pda(multisig_pda, transaction_index, program_id)[0]
 
     tx_acc = await VaultTransaction.fetch(connection, tx_pda)
 
     assert tx_acc is not None, "Transaction account not found"
     print(f"Transaction message: {tx_acc.message}")
 
-    vault_pda = get_vault_pda(multisig_pda, tx_acc.vault_index, program_id)[0]
+    vault_pda = PDA.get_vault_pda(multisig_pda, tx_acc.vault_index, program_id)[0]
     ephemeral_signer_bump_seq = list(tx_acc.ephemeral_signer_bumps)
 
     account_metas, lookup_table_accs = await accounts_for_transaction_execute(

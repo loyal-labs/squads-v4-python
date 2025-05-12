@@ -1,6 +1,7 @@
 from solders.instruction import Instruction
 from solders.pubkey import Pubkey
 
+from src._internal.contants import MAX_SAFE_INTEGER
 from src.generated.instructions.proposal_create import (
     ProposalCreateAccounts,
     ProposalCreateArgs,
@@ -12,8 +13,7 @@ from src.generated.program_id import PROGRAM_ID
 from src.generated.types.proposal_create_args import (
     ProposalCreateArgs as ProposalCreateArgsType,
 )
-from src.pda import get_proposal_pda
-from src.utils.contants import MAX_SAFE_INTEGER
+from src.pda import PDA
 
 
 def proposal_create(
@@ -40,7 +40,7 @@ def proposal_create(
     except AssertionError:
         raise ValueError("Invalid argument") from None
 
-    proposal_pda = get_proposal_pda(multisig_pda, transaction_index, program_id)[0]
+    proposal_pda = PDA.get_proposal_pda(multisig_pda, transaction_index, program_id)[0]
 
     if transaction_index > MAX_SAFE_INTEGER:
         raise ValueError("transaction_index is too large")

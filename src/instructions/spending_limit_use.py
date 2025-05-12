@@ -13,7 +13,7 @@ from src.generated.program_id import PROGRAM_ID
 from src.generated.types.spending_limit_use_args import (
     SpendingLimitUseArgs as SpendingLimitUseArgsType,
 )
-from src.pda import get_vault_pda
+from src.pda import PDA
 
 
 def spending_limit_use(
@@ -47,7 +47,7 @@ def spending_limit_use(
     except AssertionError:
         raise ValueError("Invalid argument") from None
 
-    vault_pda = get_vault_pda(multisig_pda, vault_index, program_id)[0]
+    vault_pda = PDA.get_vault_pda(multisig_pda, vault_index, program_id)[0]
     vault_token_ass_address = get_associated_token_address(
         vault_pda,
         mint,

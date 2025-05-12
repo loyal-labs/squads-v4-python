@@ -1,13 +1,12 @@
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
-from pydantic import BaseModel
 from solders.address_lookup_table_account import AddressLookupTableAccount
 from solders.instruction import CompiledInstruction, Instruction
 from solders.message import MessageAddressTableLookup, MessageHeader
 from solders.pubkey import Pubkey
 
-from src.utils.contants import U8_MAX
+from src._internal.contants import U8_MAX
 
 
 @dataclass
@@ -18,6 +17,16 @@ class AccountKeysFromLookups:
     @classmethod
     def empty(cls) -> "AccountKeysFromLookups":
         return cls(writable=[], readonly=[])
+
+
+@dataclass
+class CompiledKeyMeta:
+    is_signer: bool
+    is_writable: bool
+    is_invoked: bool
+
+
+KeyMetaMap = dict[str, CompiledKeyMeta]
 
 
 class MessageAccountKeys:
@@ -89,15 +98,6 @@ class MessageAccountKeys:
             compiled_instructions.append(compiled_instruction)
 
         return compiled_instructions
-
-
-class CompiledKeyMeta(BaseModel):
-    is_signer: bool
-    is_writable: bool
-    is_invoked: bool
-
-
-KeyMetaMap = dict[str, CompiledKeyMeta]
 
 
 @dataclass

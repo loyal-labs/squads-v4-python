@@ -11,7 +11,7 @@ from src.generated.instructions.proposal_cancel_v2 import (
 )
 from src.generated.program_id import PROGRAM_ID
 from src.generated.types.proposal_vote_args import ProposalVoteArgs
-from src.pda import get_proposal_pda
+from src.pda import PDA
 
 
 def proposal_cancel_v2(
@@ -33,7 +33,7 @@ def proposal_cancel_v2(
     except AssertionError:
         raise ValueError("Invalid argument") from None
 
-    proposal_pda = get_proposal_pda(multisig_pda, transaction_index, program_id)[0]
+    proposal_pda = PDA.get_proposal_pda(multisig_pda, transaction_index, program_id)[0]
 
     accounts = ProposalCancelV2Accounts(
         proposal_vote=ProposalVoteNested(

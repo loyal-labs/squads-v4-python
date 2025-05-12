@@ -1,11 +1,10 @@
 from collections.abc import Sequence
 
-from borsh_construct import U8
-from construct import Array, Construct
 from solana.rpc.async_api import AsyncClient
 from solders.address_lookup_table_account import AddressLookupTableAccount
 from solders.hash import Hash
 from solders.instruction import AccountMeta, Instruction
+from solders.message import MessageAddressTableLookup, MessageV0
 from solders.pubkey import Pubkey
 
 from src.generated.types.multisig_compiled_instruction import (
@@ -18,31 +17,72 @@ from src.generated.types.vault_transaction_message import (
     VaultTransactionMessage,
     VaultTransactionMessageJSON,
 )
-from src.pda import get_ephemeral_signer_pda
+from src.pda import PDA
 from src.types import TransactionMessageConstruct
-from src.utils.compile_to_wrapped_message_v0 import compile_to_wrapped_message_v0
-from src.utils.compiled_keys import CompiledKeys
 
-MAX_TX_SIZE_BYTES = 1232
-STRING_LEN_SIZE = 4
+from .compiled_keys import AccountKeysFromLookups, CompiledKeys, MessageAccountKeys
 
 
-def create_small_array(  # type: ignore
-    length: Construct,  # type: ignore
-    construct: Construct = U8,  # type: ignore
-) -> Array:  # type: ignore
+async def get_recent_blockhash(connection: AsyncClient) -> Hash:
+    return (await connection.get_latest_blockhash()).value.blockhash
+
+
+def compile_to_wrapped_message_v0(
+    payer_key: Pubkey,
+    recent_blockhash: Hash,
+    instructions: Sequence[Instruction],
+    address_lookup_table_accounts: Sequence[AddressLookupTableAccount] | None = None,
+) -> MessageV0:
     """
-    Creates a small array of the given length.
+    Compiles transaction components into a MessageV0 object, using a custom
+    key compilation logic suitable for "wrapped" messages like Squads v4
+    VaultTransaction.
+
+    This function mirrors the behavior of a similar utility in the Squads v4
+    TypeScript SDK, including the specific handling of program IDs and
+    Address Lookup Tables (ALTs).
+
+    Args:
+        payer_key: The public key of the fee payer.
+        recent_blockhash: The recent blockhash as a base58 encoded string.
+        instructions: A sequence of transaction instructions to include.
+                      Each instruction must conform to InputTransactionInstruction.
+        address_lookup_table_accounts: An optional sequence of address lookup
+                                       table accounts to use for compressing
+                                       the message.
+
+    Returns:
+        A MessageV0 object ready for transaction signing and sending.
     """
-    return construct[length]  # type: ignore
+    compiled_keys = CompiledKeys.compile(instructions, payer_key)
 
+    address_table_lookups_list: Sequence[MessageAddressTableLookup] = []
+    account_keys_from_lookups: AccountKeysFromLookups = AccountKeysFromLookups.empty()
 
-def get_available_memo_size(tx_without_memo: bytes) -> int:
-    tx_size = len(tx_without_memo)
-    # Sometimes long memo can trigger switching
-    # from 1 to 2 bytes length encoding in Compact-u16,
-    # so we reserve 1 extra byte to make sure.
-    return MAX_TX_SIZE_BYTES - tx_size - STRING_LEN_SIZE - 1
+    active_address_lookup_table_accounts = address_lookup_table_accounts or []
+    # Iterate over a copy of items if modifying the dict during iteration
+    for lookup_table in active_address_lookup_table_accounts:
+        extract_result = compiled_keys.extract_table_lookup(lookup_table)
+
+        if extract_result is not None:
+            # This should not happen if CompiledKeys compile
+            address_table_lookup, extracted_keys_from_lut = extract_result
+            address_table_lookups_list.extend([address_table_lookup])
+            account_keys_from_lookups.writable.extend(extracted_keys_from_lut.writable)
+            account_keys_from_lookups.readonly.extend(extracted_keys_from_lut.readonly)
+
+    header, static_account_keys = compiled_keys.get_message_components()
+
+    account_keys = MessageAccountKeys(static_account_keys, account_keys_from_lookups)
+    compiled_instructions = account_keys.compile_instructions(instructions)
+
+    return MessageV0(
+        header=header,
+        account_keys=static_account_keys,
+        recent_blockhash=recent_blockhash,
+        instructions=compiled_instructions,
+        address_table_lookups=address_table_lookups_list,
+    )
 
 
 def is_static_writable_index(
@@ -80,7 +120,6 @@ def transaction_message_to_multisig_transaction_message_bytes(
     transaction_recent_blockhash: Hash,
     transaction_instructions: list[Instruction],
     address_lookup_table_accounts: list[AddressLookupTableAccount],
-    vault_pda: Pubkey,
 ) -> bytes:
     compiled_message = compile_to_wrapped_message_v0(
         payer_key=transaction_payer,
@@ -122,9 +161,8 @@ def transaction_message_to_multisig_transaction_message_bytes(
         instructions=compiled_instructions,
         address_table_lookups=lut_table_lookups,
     )
-
-    tx_msg_obj = VaultTransactionMessage.from_json(construct_dict)
-    tx_msg_bytes = tx_msg_obj.layout.build(tx_msg_obj.to_encodable())
+    tx_msg_construct = TransactionMessageConstruct.from_json(construct_dict)
+    tx_msg_bytes = tx_msg_construct.layout.build(tx_msg_construct.to_encodable())
 
     return tx_msg_bytes
 
@@ -162,7 +200,7 @@ async def accounts_for_transaction_execute(
 ) -> tuple[list[AccountMeta], list[AddressLookupTableAccount]]:
     print(f"Ephemeral signer bumps: {ephemeral_signer_bumps}")
     ephemeral_signer_pdas = [
-        get_ephemeral_signer_pda(
+        PDA.get_ephemeral_signer_pda(
             transaction_pda=transaction_pda,
             ephemeral_signer_index=additional_signer_index,
             program_id=program_id,

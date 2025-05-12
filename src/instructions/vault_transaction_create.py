@@ -5,6 +5,9 @@ from solders.hash import Hash
 from solders.instruction import Instruction
 from solders.pubkey import Pubkey
 
+from src._internal.utils import (
+    transaction_message_to_multisig_transaction_message_bytes,
+)
 from src.generated.instructions.vault_transaction_create import (
     VaultTransactionCreateAccounts,
     VaultTransactionCreateArgs,
@@ -19,8 +22,7 @@ from src.generated.types.vault_transaction_create_args import (
 from src.generated.types.vault_transaction_create_args import (
     VaultTransactionCreateArgsJSON,
 )
-from src.pda import get_transaction_pda, get_vault_pda
-from src.utils.utils import transaction_message_to_multisig_transaction_message_bytes
+from src.pda import PDA
 
 
 def vault_transaction_create(
@@ -60,8 +62,7 @@ def vault_transaction_create(
     except AssertionError:
         raise ValueError("Invalid argument") from None
 
-    vault_pda = get_vault_pda(multisig_pda, vault_index, program_id)[0]
-    tx_pda = get_transaction_pda(multisig_pda, transaction_index, program_id)[0]
+    tx_pda = PDA.get_transaction_pda(multisig_pda, transaction_index, program_id)[0]
 
     transaction_message_bytes = (
         transaction_message_to_multisig_transaction_message_bytes(
@@ -69,7 +70,6 @@ def vault_transaction_create(
             transaction_recent_blockhash,
             transaction_instructions,
             address_lookup_table_accounts,
-            vault_pda,
         )
     )
 

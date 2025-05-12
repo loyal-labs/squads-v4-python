@@ -8,12 +8,11 @@ from src.generated.instructions.config_transaction_create import (
 from src.generated.instructions.config_transaction_create import (
     config_transaction_create as config_transaction_create_instruction,
 )
-from src.generated.program_id import PROGRAM_ID
 from src.generated.types.config_action import ConfigActionKind
 from src.generated.types.config_transaction_create_args import (
     ConfigTransactionCreateArgs as ConfigTransactionCreateArgsType,
 )
-from src.pda import get_transaction_pda
+from src.pda import PDA
 
 
 def config_transaction_create(
@@ -23,23 +22,17 @@ def config_transaction_create(
     rent_payer: Pubkey,
     actions: list[ConfigActionKind],
     memo: str | None,
-    program_id: Pubkey | None,
+    program_id: Pubkey,
 ) -> Instruction:
-    if program_id is None:
-        program_id = PROGRAM_ID
+    assert isinstance(multisig_pda, Pubkey)
+    assert isinstance(transaction_index, int)
+    assert isinstance(creator, Pubkey)
+    assert isinstance(rent_payer, Pubkey)
+    assert isinstance(actions, list)
+    assert isinstance(memo, str | None)
+    assert isinstance(program_id, Pubkey)
 
-    try:
-        assert isinstance(multisig_pda, Pubkey)
-        assert isinstance(transaction_index, int)
-        assert isinstance(creator, Pubkey)
-        assert isinstance(rent_payer, Pubkey)
-        assert isinstance(actions, list)
-        assert isinstance(memo, str | None)
-        assert isinstance(program_id, Pubkey)
-    except AssertionError:
-        raise ValueError("Invalid argument") from None
-
-    txn_pda = get_transaction_pda(multisig_pda, transaction_index, program_id)[0]
+    txn_pda = PDA.get_transaction_pda(multisig_pda, transaction_index, program_id)[0]
 
     accounts = ConfigTransactionCreateAccounts(
         multisig=multisig_pda,

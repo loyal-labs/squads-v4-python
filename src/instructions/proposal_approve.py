@@ -10,7 +10,7 @@ from src.generated.instructions.proposal_approve import (
 )
 from src.generated.program_id import PROGRAM_ID
 from src.generated.types.proposal_vote_args import ProposalVoteArgs
-from src.pda import get_proposal_pda
+from src.pda import PDA
 
 
 def proposal_approve(
@@ -32,7 +32,7 @@ def proposal_approve(
     except AssertionError:
         raise ValueError("Invalid argument") from None
 
-    proposal_pda = get_proposal_pda(multisig_pda, transaction_index, program_id)[0]
+    proposal_pda = PDA.get_proposal_pda(multisig_pda, transaction_index, program_id)[0]
 
     accounts = ProposalApproveAccounts(
         multisig=multisig_pda,

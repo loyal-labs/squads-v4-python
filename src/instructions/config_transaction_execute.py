@@ -8,7 +8,7 @@ from src.generated.instructions.config_transaction_execute import (
     config_transaction_execute as config_transaction_execute_instruction,
 )
 from src.generated.program_id import PROGRAM_ID
-from src.pda import get_proposal_pda, get_transaction_pda
+from src.pda import PDA
 
 
 def config_transaction_execute(
@@ -32,8 +32,8 @@ def config_transaction_execute(
     except AssertionError:
         raise ValueError("Invalid argument") from None
 
-    proposal_pda = get_proposal_pda(multisig_pda, transaction_index, program_id)[0]
-    txn_pda = get_transaction_pda(multisig_pda, transaction_index, program_id)[0]
+    proposal_pda = PDA.get_proposal_pda(multisig_pda, transaction_index, program_id)[0]
+    txn_pda = PDA.get_transaction_pda(multisig_pda, transaction_index, program_id)[0]
 
     anchor_remaining_accounts = [
         AccountMeta(pubkey=spending_limit, is_writable=True, is_signer=False)

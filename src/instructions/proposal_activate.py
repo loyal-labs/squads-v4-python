@@ -6,7 +6,7 @@ from src.generated.instructions.proposal_activate import (
     proposal_activate as proposal_activate_instruction,
 )
 from src.generated.program_id import PROGRAM_ID
-from src.pda import get_proposal_pda
+from src.pda import PDA
 
 
 def proposal_activate(
@@ -26,7 +26,7 @@ def proposal_activate(
     except AssertionError:
         raise ValueError("Invalid argument") from None
 
-    proposal_pda = get_proposal_pda(multisig_pda, transaction_index, program_id)[0]
+    proposal_pda = PDA.get_proposal_pda(multisig_pda, transaction_index, program_id)[0]
 
     accounts = ProposalActivateAccounts(
         multisig=multisig_pda,

@@ -1,8 +1,7 @@
 from solders.hash import Hash
 from solders.message import MessageV0
 from solders.pubkey import Pubkey
-from solders.signature import Signature
-from solders.transaction import VersionedTransaction
+from solders.transaction import Signer, VersionedTransaction
 
 from src.generated.types.member import Member
 from src.instructions.multisig_create_v2 import multisig_create_v2 as create_instruction
@@ -11,9 +10,9 @@ from src.instructions.multisig_create_v2 import multisig_create_v2 as create_ins
 def multisig_create_v2(
     blockhash: Hash,
     treasury: Pubkey,
-    create_key: Pubkey,
-    creator: Pubkey,
-    multisig: Pubkey,
+    create_key: Signer,
+    creator: Signer,
+    multisig_pda: Pubkey,
     config_authority: Pubkey | None,
     threshold: int,
     members: list[Member],
@@ -23,49 +22,48 @@ def multisig_create_v2(
     program_id: Pubkey,
 ) -> VersionedTransaction:
     """
-    Returns unsigned `VersionedTransaction` that needs to be
-    signed by `creator` and `create_key` before sending it.
+    Creates a new multisig account.
     """
-    try:
-        assert isinstance(blockhash, Hash)
-        assert isinstance(treasury, Pubkey)
-        assert isinstance(create_key, Pubkey)
-        assert isinstance(creator, Pubkey)
-        assert isinstance(multisig, Pubkey)
-        assert isinstance(config_authority, Pubkey | None)
-        assert isinstance(threshold, int)
-        assert isinstance(members, list)
-        assert isinstance(time_lock, int)
-        assert isinstance(rent_collector, Pubkey | None)
-        assert isinstance(memo, str | None)
-        assert isinstance(program_id, Pubkey)
-    except AssertionError:
-        raise ValueError("Invalid argument") from None
+    assert isinstance(treasury, Pubkey), "Invalid treasury"
+    assert isinstance(create_key, Signer), "Invalid create_key"
+    assert isinstance(creator, Signer), "Invalid creator"
+    assert isinstance(multisig_pda, Pubkey), "Invalid multisig_pda"
+    assert isinstance(config_authority, Pubkey | None), "Invalid config_authority"
+    assert isinstance(threshold, int), "Invalid threshold"
+    assert isinstance(members, list), "Invalid members"
+    assert len(members) > 0, "Invalid members (must be non-empty)"
+    assert isinstance(time_lock, int), "Invalid time_lock"
+    assert time_lock >= 0, "Invalid time_lock (must be >= 0)"
+    assert isinstance(rent_collector, Pubkey | None), "Invalid rent_collector"
+    assert isinstance(memo, str | None), "Invalid memo"
+    assert isinstance(program_id, Pubkey), "Invalid program_id"
 
     instruction = create_instruction(
         treasury,
-        creator,
-        multisig,
+        creator.pubkey(),
+        multisig_pda,
         config_authority,
         threshold,
         members,
         time_lock,
-        create_key,
+        create_key.pubkey(),
         rent_collector,
         memo,
         program_id,
     )
 
-    message_v0 = MessageV0.try_compile(
-        creator,
-        [instruction],
-        [],
-        blockhash,
-    )
+    try:
+        message_v0 = MessageV0.try_compile(
+            creator.pubkey(),
+            [instruction],
+            [],
+            blockhash,
+        )
+    except Exception as e:
+        raise e from None
 
-    num_signers = message_v0.header.num_required_signatures
-    signers = [Signature.default() for _ in range(num_signers)]
-
-    versioned_tx = VersionedTransaction.populate(message_v0, signers)
-
-    return versioned_tx
+    try:
+        versioned_tx = VersionedTransaction(message_v0, [creator, create_key])
+        return versioned_tx
+    except Exception as e:
+        raise e from None

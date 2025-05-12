@@ -2,9 +2,9 @@ import logging
 import sys
 
 
-def setup_logging():
+def setup_logging(name: str):
     """Configure root logger for the entire project"""
-    logger = logging.getLogger("athena")
+    logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
 
     # Prevent duplicate handlers
@@ -18,7 +18,3 @@ def setup_logging():
 
     logger.addHandler(console_handler)
     return logger
-
-
-# Initialize immediately when imported
-logger = setup_logging()

@@ -33,7 +33,7 @@ class CompiledMsInstructionConstruct:
 
     layout = CStruct(
         "program_id_index" / U8,
-        "account_indexex" / U8Vec(U8),  # type: ignore
+        "account_indexes" / U8Vec(U8),  # type: ignore
         "data" / U16Vec(U8),  # type: ignore
     )
 
@@ -99,8 +99,8 @@ class TransactionMessageConstruct:
         "num_writable_signers" / U8,
         "num_writable_non_signers" / U8,
         "account_keys" / U8Vec(BorshPubkey),  # type: ignore
-        "instructions" / U8Vec(CompiledMsInstructionConstruct),  # type: ignore
-        "address_table_lookups" / U8Vec(MessageAddressTableConstruct),  # type: ignore
+        "instructions" / U8Vec(CompiledMsInstructionConstruct.layout),  # type: ignore
+        "address_table_lookups" / U8Vec(MessageAddressTableConstruct.layout),  # type: ignore
     )
 
     @classmethod
@@ -127,7 +127,7 @@ class TransactionMessageConstruct:
             "num_signers": self.num_signers,
             "num_writable_signers": self.num_writable_signers,
             "num_writable_non_signers": self.num_writable_non_signers,
-            "account_keys": [str(key) for key in self.account_keys],
+            "account_keys": list(self.account_keys),
             "instructions": [
                 instruction.to_encodable() for instruction in self.instructions
             ],
