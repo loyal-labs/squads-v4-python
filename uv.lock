@@ -848,7 +848,7 @@ wheels = [
 [[package]]
 name = "squads"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "anchorpy" },
     { name = "autoflake" },
